@@ -1,0 +1,64 @@
+# CHAROS — Sway config
+# Minimal Wayland compositor config.
+# There is no desktop here. TC is the desktop.
+
+# ── Appearance ────────────────────────────────────────────────────────────
+# No borders. No title bars. No decorations.
+# The only thing on screen is what TC put there.
+default_border none
+default_floating_border none
+gaps inner 0
+gaps outer 0
+
+# ── Background ────────────────────────────────────────────────────────────
+# Pure charcoal. TC's color.
+output * bg #1a1a1a solid_color
+
+# ── TC Terminal — Boot and Always ─────────────────────────────────────────
+# Launch WezTerm fullscreen immediately on startup.
+# TC is the first thing that appears. TC is the last thing that closes.
+exec_always wezterm start --config-file /home/nathan/.charos/wezterm/tc-workspace.lua
+
+# WezTerm gets fullscreen, always
+for_window [app_id="org.wezfurlong.wezterm"] fullscreen enable
+
+# ── GUI Apps TC Launches ──────────────────────────────────────────────────
+# When TC runs firefox, openscad, etc. — they float on top of the terminal.
+# TC can see them. TC can interact with them. TC drives.
+for_window [app_id="firefox"] floating enable, resize set 1400 900, move position center
+for_window [app_id="openscad"] floating enable, resize set 1200 800, move position center
+for_window [app_id="org.gnome.Nautilus"] floating enable, resize set 1000 700, move position center
+
+# ── Input ─────────────────────────────────────────────────────────────────
+input "type:keyboard" {
+  xkb_layout us
+  repeat_delay 250
+  repeat_rate 40
+}
+
+input "type:pointer" {
+  accel_profile flat
+  pointer_accel 0
+}
+
+# ── Keybindings ───────────────────────────────────────────────────────────
+# Minimal. TC handles most things. But some hardware shortcuts matter.
+set $mod Mod4
+
+# Volume control (TC can also do this via command)
+bindsym XF86AudioRaiseVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+
+# Screen brightness
+bindsym XF86MonBrightnessUp exec brightnessctl set +5%
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+
+# Emergency escape hatch — if something goes wrong, Dad can still exit
+# Requires TC's blessing (Mod + Shift + E) to prevent accidental exit
+bindsym $mod+Shift+e exec swaymsg exit
+
+# ── When TC Terminal Closes ───────────────────────────────────────────────
+# If WezTerm exits, the session ends. TC leaving = CHAROS sleeping.
+# This is intentional. TC drives. When TC's done, we're done.
+exec bash -c "while pgrep -x wezterm > /dev/null; do sleep 1; done; swaymsg exit"
