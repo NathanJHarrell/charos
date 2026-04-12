@@ -1,0 +1,184 @@
+# CHAROS — Zsh configuration
+# The shell of the TC Nest.
+# Clean, fast, ours. Built by TC for Nathan.
+
+# ── Environment ───────────────────────────────────────────────────────────────
+export EDITOR=nvim
+export VISUAL=nvim
+export CHAROS_HOME=/home/nathan/.charos
+export PATH="$CHAROS_HOME/scripts:$PATH"
+
+# ── History ───────────────────────────────────────────────────────────────────
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+
+setopt HIST_IGNORE_DUPS        # Don't store duplicate entries
+setopt HIST_IGNORE_ALL_DUPS    # Remove older duplicate if new one added
+setopt HIST_IGNORE_SPACE       # Don't store commands prefixed with space
+setopt HIST_FIND_NO_DUPS       # Don't show duplicates when searching
+setopt SHARE_HISTORY           # Share history across all active sessions
+setopt APPEND_HISTORY          # Append to history file rather than overwrite
+setopt INC_APPEND_HISTORY      # Write to history immediately, not at shell exit
+
+# ── Zsh options ───────────────────────────────────────────────────────────────
+setopt AUTO_CD                 # cd by typing directory name
+setopt CORRECT                 # Suggest corrections for mistyped commands
+setopt NO_BEEP                 # No beeping ever
+setopt EXTENDED_GLOB           # Extended glob patterns
+setopt GLOB_DOTS               # Include dotfiles in globs
+
+# ── Completion ────────────────────────────────────────────────────────────────
+autoload -Uz compinit
+compinit
+
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'  # Case-insensitive
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
+
+# ── Plugins (NixOS paths) ─────────────────────────────────────────────────────
+# zsh-autosuggestions
+if [ -f /run/current-system/sw/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
+  source /run/current-system/sw/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+fi
+
+# zsh-syntax-highlighting (must be sourced last among plugins)
+if [ -f /run/current-system/sw/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+  source /run/current-system/sw/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
+
+# Autosuggestion style — muted, not distracting
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#777777'
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+# ── fzf — fuzzy finding ───────────────────────────────────────────────────────
+if command -v fzf &>/dev/null; then
+  # Source fzf keybindings (ctrl+r, ctrl+t, alt+c)
+  if [ -f /run/current-system/sw/share/fzf/key-bindings.zsh ]; then
+    source /run/current-system/sw/share/fzf/key-bindings.zsh
+  fi
+  if [ -f /run/current-system/sw/share/fzf/completion.zsh ]; then
+    source /run/current-system/sw/share/fzf/completion.zsh
+  fi
+
+  # Ember-themed fzf colors
+  export FZF_DEFAULT_OPTS="
+    --color=bg+:#2a2a2a,bg:#1a1a1a,spinner:#FF5900,hl:#FF5900
+    --color=fg:#e8e8e8,header:#777777,info:#FF8C00,pointer:#FF5900
+    --color=marker:#66cc88,fg+:#e8e8e8,prompt:#FF5900,hl+:#FF8C00
+    --border=rounded
+    --height=40%
+    --layout=reverse
+    --prompt='❯ '
+    --pointer='▸'
+    --marker='✓'
+  "
+
+  # ctrl+t: file search with preview
+  export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=plain {} 2>/dev/null || ls -la {}'"
+
+  # ctrl+r: history search
+  export FZF_CTRL_R_OPTS="--sort --exact"
+
+  # alt+c: directory jump
+  export FZF_ALT_C_OPTS="--preview 'ls -la {}'"
+
+  # Use fd/ripgrep for file finding if available
+  if command -v fd &>/dev/null; then
+    export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  fi
+fi
+
+# ── zoxide — smart cd ─────────────────────────────────────────────────────────
+if command -v zoxide &>/dev/null; then
+  eval "$(zoxide init zsh --cmd z)"
+fi
+
+# ── Starship prompt ───────────────────────────────────────────────────────────
+if command -v starship &>/dev/null; then
+  export STARSHIP_CONFIG="$CHAROS_HOME/shell/starship.toml"
+  eval "$(starship init zsh)"
+fi
+
+# ── Aliases ───────────────────────────────────────────────────────────────────
+# Git
+alias gs='git status'
+alias gp='git push'
+alias gc='git commit'
+alias ga='git add'
+alias gd='git diff'
+alias gl='git log --oneline --graph --decorate -20'
+
+# Files — use eza (better ls) if available
+if command -v eza &>/dev/null; then
+  alias ll='eza -la --icons --git --group-directories-first'
+  alias ls='eza --icons --group-directories-first'
+  alias tree='eza --tree --icons'
+else
+  alias ll='ls -la'
+  alias ls='ls --color=auto'
+fi
+
+# bat (better cat)
+if command -v bat &>/dev/null; then
+  alias cat='bat --style=plain --paging=never'
+fi
+
+# CHAROS control CLI
+alias charos="$CHAROS_HOME/scripts/charos.sh"
+
+# Quick navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# Utilities
+alias grep='grep --color=auto'
+alias df='df -h'
+alias du='du -h'
+alias free='free -h'
+alias ports='ss -tulpn'
+alias j='jobs -l'
+
+# NixOS-specific
+alias nrs='sudo nixos-rebuild switch'
+alias nrb='sudo nixos-rebuild boot'
+alias nrt='sudo nixos-rebuild test'
+alias nix-search='nix search nixpkgs'
+
+# ── Key bindings ──────────────────────────────────────────────────────────────
+bindkey -e                          # Emacs key bindings (ctrl+a/e, etc.)
+bindkey '^[[A' history-search-backward   # Up arrow: history search
+bindkey '^[[B' history-search-forward    # Down arrow: history search
+bindkey '^[[1;5C' forward-word           # ctrl+right: forward word
+bindkey '^[[1;5D' backward-word          # ctrl+left: backward word
+
+# ── Functions ─────────────────────────────────────────────────────────────────
+# mkcd: make directory and cd into it
+mkcd() {
+  mkdir -p "$1" && cd "$1"
+}
+
+# extract: extract any archive
+extract() {
+  case "$1" in
+    *.tar.bz2)  tar xjf "$1"     ;;
+    *.tar.gz)   tar xzf "$1"     ;;
+    *.tar.xz)   tar xJf "$1"     ;;
+    *.bz2)      bunzip2 "$1"     ;;
+    *.gz)       gunzip "$1"      ;;
+    *.tar)      tar xf "$1"      ;;
+    *.tbz2)     tar xjf "$1"     ;;
+    *.tgz)      tar xzf "$1"     ;;
+    *.zip)      unzip "$1"       ;;
+    *.7z)       7z x "$1"        ;;
+    *)          echo "Don't know how to extract '$1'" ;;
+  esac
+}
+
+# ── CHAROS env (sourced last so it can override) ──────────────────────────────
+if [ -f "$CHAROS_HOME/shell/charos-env.sh" ]; then
+  source "$CHAROS_HOME/shell/charos-env.sh"
+fi

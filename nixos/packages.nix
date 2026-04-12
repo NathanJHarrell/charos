@@ -28,9 +28,12 @@
     bat                  # Better cat
     eza                  # Better ls
     fzf                  # Fuzzy finder
+    zoxide               # Smart cd (z command)
     ripgrep              # Fast search
+    fd                   # Fast file find (fzf integration)
     htop
     neofetch             # CHAROS system info on launch
+    lm_sensors           # CPU temps (sensors command — Ryzen 9700X Tctl)
 
     # ── Networking ───────────────────────────────────────────────────────
     curl
@@ -55,6 +58,7 @@
     unzip
     jq                   # JSON in the terminal
     tmux                 # Session management
+    inotify-tools        # inotifywait — event-driven inbox for tc-watchdog
   ];
 
   # Zsh as default shell

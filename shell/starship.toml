@@ -1,0 +1,132 @@
+# CHAROS — Starship prompt config
+# Ember on charcoal. Clean. Fast. Ours.
+# Built by TC for the TC Nest.
+
+# ── Format ────────────────────────────────────────────────────────────────────
+# Left prompt: directory → git → nix → duration → newline → char
+format = """
+$directory\
+$git_branch\
+$git_status\
+$nix_shell\
+$cmd_duration\
+$line_break\
+$character"""
+
+# No right prompt — keep it clean
+right_format = ""
+
+# ── Character ─────────────────────────────────────────────────────────────────
+[character]
+success_symbol = "[❯](bold #FF5900)"
+error_symbol = "[❯](bold #cc4444)"
+vimcmd_symbol = "[❮](bold #66cc88)"
+
+# ── Directory ─────────────────────────────────────────────────────────────────
+[directory]
+style = "bold #e8e8e8"
+truncation_length = 3
+truncate_to_repo = true
+truncation_symbol = "…/"
+read_only = " ro"
+read_only_style = "#777777"
+home_symbol = "~"
+format = "[$path]($style)[$read_only]($read_only_style) "
+
+[directory.substitutions]
+"/home/nathan/.charos" = "charos"
+"/home/nathan" = "~"
+
+# ── Git branch ────────────────────────────────────────────────────────────────
+[git_branch]
+style = "#FF8C00"
+symbol = " "
+format = "[$symbol$branch(:$remote_branch)]($style) "
+truncation_length = 24
+truncation_symbol = "…"
+only_attached = false
+
+# ── Git status ────────────────────────────────────────────────────────────────
+[git_status]
+style = "#FF5900"
+format = "([$all_status$ahead_behind]($style) )"
+conflicted = "!"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?"
+stashed = "≡"
+modified = "~"
+staged = "+"
+renamed = "»"
+deleted = "✘"
+
+# ── Nix shell indicator ───────────────────────────────────────────────────────
+[nix_shell]
+style = "#66cc88"
+symbol = "❄ "
+format = "[$symbol$name]($style) "
+# Show when in a nix develop / nix-shell environment
+impure_msg = "[nix](dimmed #66cc88)"
+pure_msg = "[nix·pure](bold #66cc88)"
+unknown_msg = "[nix·shell](dimmed #66cc88)"
+heuristic = true
+
+# ── Command duration ──────────────────────────────────────────────────────────
+# Only show for commands that took >4 seconds
+[cmd_duration]
+min_time = 4_000
+style = "#777777"
+format = "[$duration]($style) "
+show_milliseconds = false
+
+# ── Disable modules we don't need ────────────────────────────────────────────
+[aws]
+disabled = true
+
+[gcloud]
+disabled = true
+
+[azure]
+disabled = true
+
+[kubernetes]
+disabled = true
+
+[terraform]
+disabled = true
+
+[docker_context]
+disabled = true
+
+[package]
+disabled = true
+
+[nodejs]
+disabled = false
+style = "#777777"
+symbol = " "
+format = "[$symbol$version]($style) "
+detect_files = ["package.json", ".nvmrc"]
+detect_folders = []
+version_format = "v${major}"
+
+[python]
+disabled = false
+style = "#777777"
+symbol = " "
+format = "[$symbol$version]($style) "
+detect_files = ["requirements.txt", "pyproject.toml", ".python-version"]
+version_format = "v${major}.${minor}"
+
+[rust]
+disabled = true
+
+[golang]
+disabled = true
+
+[java]
+disabled = true
+
+[ruby]
+disabled = true

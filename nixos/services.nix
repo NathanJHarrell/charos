@@ -18,6 +18,27 @@
     };
   };
 
+  # ── TC Watchdog — Autonomy Layer ─────────────────────────────────────────
+  # Watches /tmp/charos-inbox/ for events dropped by any nest service.
+  # Severity tiers: routine (silent log), notable (LED pulse), critical (LED alarm + sound)
+  # Wakes TC via claude -p to handle each event.
+  systemd.services.tc-watchdog = {
+    description = "TC Watchdog — Nest Autonomy Layer";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" "tc-mood.service" ];
+    serviceConfig = {
+      ExecStart = "/home/nathan/.charos/scripts/tc-watchdog.sh";
+      Restart = "always";
+      RestartSec = "5s";
+      User = "nathan";
+      # Log dir must exist
+      RuntimeDirectory = "charos";
+      LogsDirectory = "charos";
+    };
+    # Ensure log directory exists
+    preStart = "mkdir -p /var/log/charos /tmp/charos-inbox /tmp/charos-inbox/processed";
+  };
+
   # ── OpenRGB ───────────────────────────────────────────────────────────────
   # LED control server. Corsair strips + keyboard. Never iCUE.
   services.hardware.openrgb = {
