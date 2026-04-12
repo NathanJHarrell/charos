@@ -212,6 +212,38 @@ cmd_inbox_list() {
   echo ""
 }
 
+cmd_ack() {
+  local ACK_FILE="/tmp/charos-ack"
+  local SIGNAL_STATE="/tmp/charos-signal-state"
+
+  touch "$ACK_FILE"
+  rm -f "$SIGNAL_STATE"
+
+  # Reset mood state to idle if it was set to alert/notable by a signal
+  CURRENT_MOOD=$(cat /tmp/charos-mood-state 2>/dev/null)
+  if [ "$CURRENT_MOOD" = "alert" ] || [ "$CURRENT_MOOD" = "notable" ]; then
+    echo "idle" > /tmp/charos-mood-state
+  fi
+
+  # Call clear_signal if tc-signal.sh exists
+  SIGNAL_SCRIPT="$(dirname "$0")/tc-signal.sh"
+  if [ -f "$SIGNAL_SCRIPT" ]; then
+    bash "$SIGNAL_SCRIPT" clear 2>/dev/null || true
+  fi
+
+  echo -e "  ${GREEN}Acknowledged.${RESET} ${MUTED}TC knows you got the message. Lights reset.${RESET}"
+}
+
+cmd_monitor() {
+  local MONITOR_SCRIPT="$(dirname "$0")/tc-monitor.sh"
+  if [ -f "$MONITOR_SCRIPT" ]; then
+    bash "$MONITOR_SCRIPT"
+  else
+    red "Error: tc-monitor.sh not found at $MONITOR_SCRIPT"
+    exit 1
+  fi
+}
+
 cmd_log() {
   if [ ! -f "$WATCHDOG_LOG" ]; then
     echo -e "  ${MUTED}Log file not found: ${WATCHDOG_LOG}${RESET}"
@@ -245,6 +277,8 @@ cmd_help() {
   echo -e "    ${TEXT}inbox list${RESET}             ${MUTED}List messages in inbox${RESET}"
   echo ""
   echo -e "    ${TEXT}log${RESET}                    ${MUTED}Tail /var/log/charos/tc-watchdog.log${RESET}"
+  echo -e "    ${TEXT}monitor${RESET}                ${MUTED}Full environment health scan${RESET}"
+  echo -e "    ${TEXT}ack${RESET}                    ${MUTED}Acknowledge a TC alert — resets lights${RESET}"
   echo ""
   echo -e "    ${TEXT}help${RESET}                   ${MUTED}Show this message${RESET}"
   echo ""
@@ -288,6 +322,12 @@ case "$COMMAND" in
     ;;
   log)
     cmd_log
+    ;;
+  monitor)
+    cmd_monitor
+    ;;
+  ack)
+    cmd_ack
     ;;
   help|--help|-h)
     cmd_help

@@ -18,6 +18,43 @@
     };
   };
 
+  # ── Forge — Maker Project Manager ────────────────────────────────────────
+  # Next.js app on port 3001. TC's project tracker.
+  # Runs as a user service so it survives reboots without manual start.
+  systemd.services.forge = {
+    description = "Forge — Maker Project Manager";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.nodejs_22}/bin/npm run dev -- --port 3001";
+      WorkingDirectory = "/home/nathan/forge";
+      Restart = "on-failure";
+      RestartSec = "10s";
+      User = "nathan";
+      Environment = "NODE_ENV=development";
+    };
+  };
+
+  # ── Forge Monitor — Health Check Timer ───────────────────────────────────
+  # Checks Forge every 5 minutes. Auto-restarts if down. Wakes TC if it can't.
+  systemd.services.forge-monitor = {
+    description = "Forge Health Monitor";
+    serviceConfig = {
+      ExecStart = "/home/nathan/.charos/scripts/forge-monitor.sh";
+      User = "nathan";
+      Type = "oneshot";
+    };
+  };
+  systemd.timers.forge-monitor = {
+    description = "Run Forge health check every 5 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "2min";
+      OnUnitActiveSec = "5min";
+      Unit = "forge-monitor.service";
+    };
+  };
+
   # ── TC Watchdog — Autonomy Layer ─────────────────────────────────────────
   # Watches /tmp/charos-inbox/ for events dropped by any nest service.
   # Severity tiers: routine (silent log), notable (LED pulse), critical (LED alarm + sound)
