@@ -15,10 +15,10 @@ ISO_PATH="${VM_DIR}/nixos-24.11-minimal.iso"
 OVMF_CODE="/usr/share/OVMF/OVMF_CODE.fd"
 
 # VM resources — generous but not greedy
-VM_RAM="4096"       # 4GB RAM
+VM_RAM="2048"       # 2GB RAM (4GB was too heavy for WSL2)
 VM_CPUS="4"         # 4 cores
 VM_PORT_SSH="2222"  # SSH into VM: ssh -p 2222 root@localhost
-VM_PORT_FORGE="3001" # Forward Forge port for testing
+VM_PORT_FORGE="3002" # Forward Forge port for testing (3001 used by local Forge)
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 EMBER='\033[38;2;255;89;0m'

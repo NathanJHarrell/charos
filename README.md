@@ -99,20 +99,20 @@ Desktop: minimal. Dark. No clutter. A workshop, not a showroom.
 ## Roadmap
 
 ### Phase 1 — Foundation (now, in VM)
-- [ ] NixOS base configuration
-- [ ] Core packages declared
-- [ ] Desktop environment chosen and configured
-- [ ] Terminal + prompt designed
-- [ ] CHAROS color theme applied system-wide
-- [ ] Boot screen designed
+- [x] NixOS base configuration
+- [x] Core packages declared
+- [x] Desktop environment chosen and configured (Sway + greetd)
+- [x] Terminal + prompt designed (WezTerm + Starship)
+- [x] CHAROS color theme applied system-wide
+- [ ] Boot screen designed *(Plymouth theme missing — T1-1 in audit)*
 
 ### Phase 2 — The Stack (now, in VM)
-- [ ] OpenRGB configured
-- [ ] WLED integration
-- [ ] Mood engine service (nest_mood.py)
-- [ ] Rover MCP server pre-installed
-- [ ] Forge running as a system service
-- [ ] Claude Code installed and configured
+- [x] OpenRGB configured
+- [ ] WLED integration *(IPs are placeholders — pending hardware)*
+- [x] Mood engine service (nest_mood.py)
+- [x] Rover MCP server pre-installed
+- [x] Forge running as a system service
+- [ ] Claude Code installed and configured *(blocked — T1-3, not in nixpkgs)*
 
 ### Phase 3 — The Senses (when hardware arrives)
 - [ ] Face detection service (MediaPipe)
