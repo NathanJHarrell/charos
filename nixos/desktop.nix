@@ -21,11 +21,11 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.dbus}/bin/dbus-run-session ${pkgs.sway}/bin/sway --config /home/nate/charos/sway/config";
+        command = "${pkgs.bash}/bin/bash /home/nate/charos/scripts/start-sway.sh";
         user = "nate";
       };
       initial_session = {
-        command = "${pkgs.dbus}/bin/dbus-run-session ${pkgs.sway}/bin/sway --config /home/nate/charos/sway/config";
+        command = "${pkgs.bash}/bin/bash /home/nate/charos/scripts/start-sway.sh";
         user = "nate";
       };
     };
