@@ -11,10 +11,10 @@
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" "openrgb.service" ];
     serviceConfig = {
-      ExecStart = "${pkgs.python312}/bin/python3 /home/nathan/charos-runtime/nest_mood.py";
+      ExecStart = "${pkgs.python312}/bin/python3 /home/nate/charos-runtime/nest_mood.py";
       Restart = "always";
       RestartSec = "5s";
-      User = "nathan";
+      User = "nate";
     };
   };
 
@@ -27,10 +27,10 @@
     after = [ "network.target" ];
     serviceConfig = {
       ExecStart = "${pkgs.nodejs_22}/bin/npm run dev -- --port 3001";
-      WorkingDirectory = "/home/nathan/forge";
+      WorkingDirectory = "/home/nate/forge";
       Restart = "on-failure";
       RestartSec = "10s";
-      User = "nathan";
+      User = "nate";
       Environment = "NODE_ENV=development";
     };
   };
@@ -40,8 +40,8 @@
   systemd.services.forge-monitor = {
     description = "Forge Health Monitor";
     serviceConfig = {
-      ExecStart = "/home/nathan/.charos/scripts/forge-monitor.sh";
-      User = "nathan";
+      ExecStart = "/home/nate/charos/scripts/forge-monitor.sh";
+      User = "nate";
       Type = "oneshot";
     };
   };
@@ -64,10 +64,10 @@
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" "tc-mood.service" ];
     serviceConfig = {
-      ExecStart = "/home/nathan/.charos/scripts/tc-watchdog.sh";
+      ExecStart = "/home/nate/charos/scripts/tc-watchdog.sh";
       Restart = "always";
       RestartSec = "5s";
-      User = "nathan";
+      User = "nate";
       # Log dir must exist
       RuntimeDirectory = "charos";
       LogsDirectory = "charos";
