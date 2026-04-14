@@ -50,6 +50,7 @@
   programs.dconf.enable = true;
   environment.systemPackages = with pkgs; [
     wezterm
+    foot          # Reliable fallback Wayland terminal
     sway
     swaylock      # Screen lock when TC says so
     wl-clipboard  # Clipboard in Wayland
