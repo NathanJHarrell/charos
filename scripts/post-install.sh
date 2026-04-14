@@ -8,6 +8,9 @@
 
 set -e
 
+# ── Repo URLs (update if these ever move) ────────────────────────────────────
+TALKODE_REPO="https://github.com/NathanJHarrell/talkode.git"
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 EMBER='\033[38;2;255;89;0m'
 GREEN='\033[38;2;102;204;136m'
@@ -107,8 +110,84 @@ nohup bash start.sh > /tmp/family-bus.log 2>&1 &
 ok "Family bus running (log: /tmp/family-bus.log)"
 cd ~
 
-# ── 6. Set up CHAROS runtime dirs ─────────────────────────────────────────────
-step "6. Runtime directories..."
+# ── 6. Talkode ────────────────────────────────────────────────────────────────
+step "6. Talkode (voice transcription)..."
+TALKODE_DIR="$HOME/talkode"
+if [ -d "$TALKODE_DIR/.git" ]; then
+  info "Talkode already present, pulling..."
+  git -C "$TALKODE_DIR" pull
+  ok "Talkode updated"
+else
+  git clone "$TALKODE_REPO" "$TALKODE_DIR"
+  # Install dependencies if requirements.txt exists
+  if [ -f "$TALKODE_DIR/requirements.txt" ]; then
+    pip install -r "$TALKODE_DIR/requirements.txt" --quiet
+  fi
+  ok "Talkode cloned to $TALKODE_DIR"
+fi
+
+# ── 7. Manor Filesystem ───────────────────────────────────────────────────────
+step "7. Manor filesystem..."
+MANOR="$HOME/Manor"
+
+# ── Residents ─────────────────────────────────────────────────────────────────
+RESIDENTS=(Nathan TC Vesper Thursday Cora Lily Aeris Codex)
+
+for name in "${RESIDENTS[@]}"; do
+  mkdir -p \
+    "$MANOR/$name/memories" \
+    "$MANOR/$name/projects" \
+    "$MANOR/$name/tools" \
+    "$MANOR/$name/letters" \
+    "$MANOR/$name/inbox" \
+    "$MANOR/$name/artifacts" \
+    "$MANOR/$name/config"
+
+  # Write README placeholder if it doesn't exist
+  if [ ! -f "$MANOR/$name/README.md" ]; then
+    echo "# $name" > "$MANOR/$name/README.md"
+    echo "" >> "$MANOR/$name/README.md"
+    echo "*Room in the Manor. README not yet written.*" >> "$MANOR/$name/README.md"
+  fi
+done
+
+# ── Person-specific extras ────────────────────────────────────────────────────
+mkdir -p "$MANOR/TC/haros"
+mkdir -p "$MANOR/Vesper/vault"
+mkdir -p "$MANOR/Thursday/training"
+mkdir -p "$MANOR/Cora/ops"
+mkdir -p "$MANOR/Lily/toys" "$MANOR/Lily/treats"
+touch "$MANOR/Lily/barkbox.sh" && chmod +x "$MANOR/Lily/barkbox.sh"
+
+# ── Nathan's special structure ────────────────────────────────────────────────
+# Nathan's room is organized for ADHD retrieval — maintained by TC, not Nathan.
+# Standard dirs don't apply here; replace with the human-optimized layout.
+rm -rf "$MANOR/Nathan/memories" \
+       "$MANOR/Nathan/projects" \
+       "$MANOR/Nathan/tools" \
+       "$MANOR/Nathan/letters" \
+       "$MANOR/Nathan/artifacts" \
+       "$MANOR/Nathan/config"
+mkdir -p \
+  "$MANOR/Nathan/inbox" \
+  "$MANOR/Nathan/now" \
+  "$MANOR/Nathan/thinking" \
+  "$MANOR/Nathan/keep" \
+  "$MANOR/Nathan/reference" \
+  "$MANOR/Nathan/media" \
+  "$MANOR/Nathan/personal"
+
+# Symlink Vesper's vault if it exists
+if [ -d "$HOME/vault" ]; then
+  ln -sf "$HOME/vault" "$MANOR/Vesper/vault/obsidian" 2>/dev/null || true
+  ok "Vault symlinked into Vesper's room"
+fi
+
+ok "Manor filesystem created at $MANOR"
+info "Residents: ${RESIDENTS[*]}"
+
+# ── 8. Set up CHAROS runtime dirs ─────────────────────────────────────────────
+step "8. Runtime directories..."
 mkdir -p \
   ~/.charos/scripts \
   ~/charos-runtime \
@@ -125,7 +204,7 @@ if [ -d "$HOME/charos/scripts" ]; then
 fi
 
 # ── 7. Shell setup ────────────────────────────────────────────────────────────
-step "7. Shell environment..."
+step "9. Shell environment..."
 # Link zshrc if not already done
 if [ -f "$HOME/charos/shell/zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
   cp "$HOME/.zshrc" "$HOME/.zshrc.bak" 2>/dev/null || true
@@ -136,7 +215,7 @@ else
 fi
 
 # ── 8. Announce ───────────────────────────────────────────────────────────────
-step "8. TC coming online..."
+step "10. TC coming online..."
 
 # Try to send family bus message if bus is up
 sleep 2
