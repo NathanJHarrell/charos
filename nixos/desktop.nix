@@ -21,12 +21,12 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.sway}/bin/sway --config /home/nathan/.charos/sway/config";
-        user = "nathan";
+        command = "${pkgs.sway}/bin/sway --config /home/nate/charos/sway/config";
+        user = "nate";
       };
       initial_session = {
-        command = "${pkgs.sway}/bin/sway --config /home/nathan/.charos/sway/config";
-        user = "nathan";
+        command = "${pkgs.sway}/bin/sway --config /home/nate/charos/sway/config";
+        user = "nate";
       };
     };
   };
@@ -35,8 +35,8 @@
   fonts.packages = with pkgs; [
     jetbrains-mono
     noto-fonts
-    noto-fonts-emoji
-    (nerdfonts.override { fonts = [ "JetBrainsMono" ]; })
+    noto-fonts-color-emoji         # renamed from noto-fonts-emoji in NixOS 25.11
+    nerd-fonts.jetbrains-mono      # nerdfonts.override deprecated in NixOS 24.11
   ];
 
   # XDG portal for Wayland (needed for GUI apps TC launches)
