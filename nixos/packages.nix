@@ -43,7 +43,7 @@
     openssh
 
     # ── Vision & AI ──────────────────────────────────────────────────────
-    python312Packages.opencv     # Face detection (T1-5 fix — opencv4 renamed in 24.11)
+    # python312Packages.opencv   # Face detection — package name unstable across NixOS versions, skip for now
     # python312Packages.mediapipe — NOT in nixpkgs, needs custom overlay (T1-4 fix)
     # TODO: build mediapipe overlay when face detection work resumes
     python312Packages.numpy
