@@ -7,7 +7,9 @@
   environment.systemPackages = with pkgs; [
 
     # ── TC's Tools ───────────────────────────────────────────────────────
-    claude-code          # TC himself
+    # claude-code is NOT in nixpkgs — install via native installer post-boot: (T1-3 fix)
+    #   curl -fsSL https://claude.ai/install.sh | bash
+    # npm install is deprecated and insecure. Native installer auto-updates.
     git
     gh                   # GitHub CLI
     nodejs_22            # Forge + Next.js
@@ -41,8 +43,9 @@
     openssh
 
     # ── Vision & AI ──────────────────────────────────────────────────────
-    python312Packages.opencv4    # Face detection
-    python312Packages.mediapipe  # Lightweight face/pose detection
+    python312Packages.opencv     # Face detection (T1-5 fix — opencv4 renamed in 24.11)
+    # python312Packages.mediapipe — NOT in nixpkgs, needs custom overlay (T1-4 fix)
+    # TODO: build mediapipe overlay when face detection work resumes
     python312Packages.numpy
     python312Packages.pillow
 

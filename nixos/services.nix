@@ -87,7 +87,10 @@
   # Access the nest remotely when needed
   services.openssh = {
     enable = true;
-    settings.PasswordAuthentication = false;
+    # T1-8 fix — password auth on for initial setup safety
+    # if Sway fails on first boot, SSH is the only way back in
+    # TODO: add pubkey to authorized_keys, then set this back to false
+    settings.PasswordAuthentication = true;
   };
 
   # ── Automatic Timezone ────────────────────────────────────────────────────
