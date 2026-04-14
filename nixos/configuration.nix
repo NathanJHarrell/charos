@@ -55,5 +55,19 @@
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   nixpkgs.config.allowUnfree = true;  # NVIDIA drivers need this
 
+  # ── nix-ld ────────────────────────────────────────────────────────────────
+  # Run prebuilt Linux binaries (Claude Code, etc.) that expect glibc paths.
+  # Without this, curl | bash installers fail on NixOS.
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv.cc.cc.lib
+      openssl
+      zlib
+      curl
+      libxml2
+    ];
+  };
+
   system.stateVersion = "24.11";
 }
