@@ -9,7 +9,7 @@
 set -e
 
 # ── Repo URLs (update if these ever move) ────────────────────────────────────
-TALKODE_REPO="https://github.com/NathanJHarrell/talkode.git"
+TALKODE_REPO="https://github.com/NathanJHarrell/Talkode.git"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 EMBER='\033[38;2;255;89;0m'
