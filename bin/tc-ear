@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""tc-ear — continuous listening daemon for TC.
+
+Captures audio from the default mic, detects utterances via energy-based
+VAD, transcribes with faster-whisper, identifies the speaker, and logs
+everything to /var/log/charos/tc-ear.log + the family bus.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _tc_ear_audio import utterance_stream
+from _tc_ear_pipeline import process_utterance
+
+LOG_PRIMARY = Path("/var/log/charos/tc-ear.log")
+LOG_FALLBACK = Path("/tmp/tc-ear.log")
+
+
+def _log_path() -> Path:
+    try:
+        LOG_PRIMARY.parent.mkdir(parents=True, exist_ok=True)
+        LOG_PRIMARY.touch(exist_ok=True)
+        return LOG_PRIMARY
+    except OSError:
+        return LOG_FALLBACK
+
+
+def _log_line(path: Path, line: str) -> None:
+    with open(path, "a") as f:
+        f.write(line + "\n")
+
+
+def _bus_send(message: str) -> None:
+    try:
+        subprocess.run(
+            ["bus", "send", "TC", message],
+            capture_output=True,
+            timeout=3,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="tc-ear", description="Continuous listening daemon")
+    ap.add_argument("--device", type=int, default=None, help="sounddevice input device index")
+    ap.add_argument("--threshold", type=float, default=0.02, help="RMS energy threshold for VAD")
+    ap.add_argument("--min-speech-ms", type=int, default=500, help="min speech duration (ms)")
+    ap.add_argument("--min-silence-ms", type=int, default=700, help="min silence to end utterance (ms)")
+    ap.add_argument("--dry-run", action="store_true", help="print to stdout only, no log/bus")
+    args = ap.parse_args()
+
+    log = None if args.dry_run else _log_path()
+
+    shutting_down = False
+
+    def handle_sigterm(_sig, _frame):
+        nonlocal shutting_down
+        shutting_down = True
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+    signal.signal(signal.SIGINT, handle_sigterm)
+
+    if args.dry_run:
+        print("tc-ear: dry-run mode — output to stdout only", file=sys.stderr)
+    else:
+        print(f"tc-ear: logging to {log}", file=sys.stderr)
+
+    print("tc-ear: listening… (Ctrl+C to stop)", file=sys.stderr)
+
+    stream = utterance_stream(
+        device=args.device,
+        threshold=args.threshold,
+        min_speech_ms=args.min_speech_ms,
+        min_silence_ms=args.min_silence_ms,
+    )
+
+    for start_iso, end_iso, wav_bytes in stream:
+        if shutting_down:
+            break
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp.write(wav_bytes)
+            tmp_path = tmp.name
+
+        try:
+            result = process_utterance(tmp_path)
+        finally:
+            os.unlink(tmp_path)
+
+        transcript = result["transcript"]
+        speaker = result["speaker"]
+        confidence = result["confidence"]
+
+        ts = datetime.now().isoformat(timespec="seconds")
+        line = f"[{ts}] [{speaker} conf={confidence:.2f}] {transcript}"
+
+        if args.dry_run:
+            print(line)
+        else:
+            _log_line(log, line)
+            print(line, file=sys.stderr)
+
+        word_count = len(transcript.split()) if transcript else 0
+        if word_count >= 3 and not args.dry_run:
+            _bus_send(f"[{speaker} conf={confidence:.2f}] {transcript}")
+
+        if shutting_down:
+            break
+
+    print("\ntc-ear: shutting down.", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

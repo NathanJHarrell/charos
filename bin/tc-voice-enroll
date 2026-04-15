@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""tc-voice-enroll — capture voice embeddings for a person.
+
+Mirrors tc-enroll (face) but for speech. Records N clips, runs each
+through speechbrain's ECAPA-TDNN encoder (192-d voice embedding,
+same model used in the VoxCeleb benchmark), and stores the results
+in ~/TC-Vault/voice_db/<name>.json.
+
+Usage:
+  tc-voice-enroll <name> [--clips N] [--seconds S]
+
+First run downloads ~80MB of speechbrain model weights to
+~/.cache/speechbrain/.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import sounddevice as sd
+import soundfile as sf
+
+SAMPLE_RATE = 16000
+VAULT_DB = Path.home() / "TC-Vault" / "voice_db"
+CLIPS_DIR_TMPL = VAULT_DB / "{name}_clips"
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def countdown(n: int) -> None:
+    for i in range(n, 0, -1):
+        print(f"  starting in {i}…", end="\r", flush=True)
+        time.sleep(1)
+    print(" " * 24, end="\r")
+
+
+def record(seconds: int) -> np.ndarray:
+    audio = sd.rec(int(seconds * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype="float32")
+    sd.wait()
+    return audio.flatten()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="tc-voice-enroll")
+    ap.add_argument("name")
+    ap.add_argument("--clips", type=int, default=5)
+    ap.add_argument("--seconds", type=int, default=15)
+    args = ap.parse_args()
+
+    slug = args.name.strip()
+    if not slug:
+        sys.exit("tc-voice-enroll: empty name")
+
+    out_json = VAULT_DB / f"{slug}.json"
+    clips_dir = Path(str(CLIPS_DIR_TMPL).format(name=slug))
+    VAULT_DB.mkdir(parents=True, exist_ok=True)
+    clips_dir.mkdir(parents=True, exist_ok=True)
+
+    if out_json.exists():
+        ans = input(f"  {out_json.name} exists — overwrite? [y/N] ").strip().lower()
+        if ans != "y":
+            print("  aborted")
+            return 1
+
+    print()
+    print(f"  enrolling voice: {slug}")
+    print(f"  plan: {args.clips} clips × {args.seconds}s each")
+    print(f"  tip: vary your tone, pace, and content. natural conversation.")
+    print(f"  skip a clip with Ctrl-C; the script keeps the good ones.\n")
+
+    # Lazy-load speechbrain (takes a sec; don't block prompts unless we need it)
+    print("  loading ECAPA-TDNN encoder (first-run downloads ~80MB)…")
+    from speechbrain.inference.speaker import EncoderClassifier
+    import torch
+
+    classifier = EncoderClassifier.from_hparams(
+        source="speechbrain/spkrec-ecapa-voxceleb",
+        savedir=str(Path.home() / ".cache/speechbrain/spkrec-ecapa-voxceleb"),
+        run_opts={"device": "cpu"},
+    )
+
+    embeddings: list[list[float]] = []
+    saved_clips: list[str] = []
+
+    prompts = [
+        "Just talk naturally. Describe your day, a project, whatever.",
+        "Tell a short story — something that happened recently.",
+        "Explain something you know well, to a made-up listener.",
+        "Speak a little faster now; more casual pace.",
+        "Slower now — as if explaining something to a friend.",
+        "Any topic — just fill the time.",
+    ]
+
+    for i in range(args.clips):
+        prompt = prompts[i % len(prompts)]
+        print(f"\n  ── clip {i+1}/{args.clips} ──")
+        print(f"  prompt: {prompt}")
+        countdown(3)
+        print(f"  🔴 recording {args.seconds}s…")
+        try:
+            audio = record(args.seconds)
+        except KeyboardInterrupt:
+            print("\n  (skipped)")
+            continue
+
+        wav_path = clips_dir / f"{i:02d}.wav"
+        sf.write(wav_path, audio, SAMPLE_RATE)
+        saved_clips.append(str(wav_path))
+
+        # Embedding: ECAPA wants a (1, samples) float32 tensor
+        signal = torch.from_numpy(audio).float().unsqueeze(0)
+        with torch.no_grad():
+            emb = classifier.encode_batch(signal).squeeze().cpu().numpy()
+        embeddings.append(emb.tolist())
+        print(f"  ✓ embedded (192-d vector)")
+
+    if len(embeddings) < 2:
+        sys.exit(f"\n  ✗ only {len(embeddings)} clips captured; need at least 2. aborted.")
+
+    payload = {
+        "name": slug,
+        "enrolled_at": now_iso(),
+        "clip_count": len(embeddings),
+        "embedding_dim": len(embeddings[0]),
+        "embeddings": embeddings,
+        "clip_paths": saved_clips,
+    }
+    out_json.write_text(json.dumps(payload, indent=2))
+    print(f"\n  ✓ {slug} enrolled")
+    print(f"    clips: {len(embeddings)}")
+    print(f"    saved: {out_json}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

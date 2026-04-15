@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# tc-mic — Sway keybind wrapper for tc-listen --toggle
+set -euo pipefail
+
+PID_FILE="/tmp/tc-listen.pid"
+STATE_FILE="/tmp/tc-listen.state"
+LAST_FILE="/tmp/tc-listen-last.txt"
+
+if [[ ! -f "$PID_FILE" ]]; then
+  echo "recording" > "$STATE_FILE"
+  tc-say "recording" &
+  tc-listen --toggle
+else
+  transcript="$(tc-listen --toggle)"
+  echo "$transcript" > "$LAST_FILE"
+  rm -f "$STATE_FILE"
+  bus send TC "[Dad-mic] $transcript"
+  tc-say "got it, sent" &
+fi

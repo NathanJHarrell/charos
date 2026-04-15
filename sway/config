@@ -121,6 +121,10 @@ bindsym $mod+d exec /home/nate/.local/bin/desktop-grid
 # as a left-anchored floating drawer. Close vim, drawer closes with it.
 for_window [app_id="note"] floating enable, resize set 384 640, move position 0 80
 
+# Mic toggle — Cmd+M starts/stops recording via tc-listen.
+# First press records, second press transcribes + posts to family bus.
+bindsym $mod+m exec /home/nate/.local/bin/tc-mic
+
 # ── When TC Terminal Closes ───────────────────────────────────────────────
 # If WezTerm exits, the session ends. TC leaving = CHAROS sleeping.
 # This is intentional. TC drives. When TC's done, we're done.

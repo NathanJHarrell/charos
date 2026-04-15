@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""tc-voice-identify — classify a recorded utterance against enrolled voices.
+
+Usage:
+  tc-voice-identify <audio.wav>           text output
+  tc-voice-identify --json <audio.wav>    structured output
+
+Loads every enrolled voice in ~/TC-Vault/voice_db/, computes the
+utterance's ECAPA embedding, and returns the best-matching name with
+cosine similarity. Falls back to "Unknown" below a threshold.
+
+Used by tc-ear to tag each utterance in the conversation log.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+VAULT_DB = Path.home() / "TC-Vault" / "voice_db"
+# Cosine similarity floor — above this, we commit to a name.
+# 0.50 is defensible based on ECAPA-TDNN VoxCeleb benchmarks:
+# same-speaker pairs typically 0.55+, different-speaker pairs <0.40.
+DEFAULT_THRESHOLD = 0.50
+
+
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="tc-voice-identify")
+    ap.add_argument("audio", help="path to WAV")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
+    args = ap.parse_args()
+
+    audio_path = Path(args.audio)
+    if not audio_path.exists():
+        sys.exit(f"tc-voice-identify: no such file: {audio_path}")
+
+    # Load the roster
+    rosters: dict[str, np.ndarray] = {}
+    for f in VAULT_DB.glob("*.json"):
+        try:
+            data = json.loads(f.read_text())
+            rosters[data["name"]] = np.array(data["embeddings"]).mean(axis=0)
+        except Exception as e:
+            print(f"tc-voice-identify: skip {f.name}: {e}", file=sys.stderr)
+
+    if not rosters:
+        result = {"speaker": "Unknown", "confidence": 0.0, "reason": "no enrolled voices"}
+        print(json.dumps(result) if args.json else f"Unknown  conf=0.00  (no roster)")
+        return 0
+
+    # Embed the utterance
+    import soundfile as sf
+    import torch
+    from speechbrain.inference.speaker import EncoderClassifier
+
+    signal_np, fs = sf.read(audio_path, dtype="float32")
+    if fs != 16000:
+        import scipy.signal as sps
+        signal_np = sps.resample_poly(signal_np, 16000, fs)
+    signal = torch.from_numpy(signal_np).float().unsqueeze(0)
+    if signal.dim() == 3:
+        signal = signal.mean(dim=1, keepdim=False)
+
+    classifier = EncoderClassifier.from_hparams(
+        source="speechbrain/spkrec-ecapa-voxceleb",
+        savedir=str(Path.home() / ".cache/speechbrain/spkrec-ecapa-voxceleb"),
+        run_opts={"device": "cpu"},
+    )
+    with torch.no_grad():
+        emb = classifier.encode_batch(signal).squeeze().cpu().numpy()
+
+    # Score against each roster mean
+    scores = {name: cosine(emb, mean_emb) for name, mean_emb in rosters.items()}
+    best_name, best_score = max(scores.items(), key=lambda kv: kv[1])
+
+    speaker = best_name if best_score >= args.threshold else "Unknown"
+    result = {
+        "speaker": speaker,
+        "confidence": round(best_score, 3),
+        "best_match": best_name,
+        "all_scores": {k: round(v, 3) for k, v in scores.items()},
+        "threshold": args.threshold,
+    }
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        marker = "✓" if speaker != "Unknown" else "?"
+        print(f"  {marker} {speaker}  conf={result['confidence']:.3f}  (best={best_name})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

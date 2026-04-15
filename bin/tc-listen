@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+"""tc-listen — push-to-talk-ish STT for TC.
+
+Usage:
+  tc-listen [SECONDS]        record SECONDS (default 10), transcribe, print
+  tc-listen --toggle         toggle mode: first run starts recorder
+                             (writes /tmp/tc-listen.pid); second run stops
+                             it and transcribes. Wire to a Sway keybind
+                             for real press-once / press-again UX.
+
+Uses faster-whisper with built-in silero VAD so silence doesn't
+hallucinate into text. First run downloads the model (~150MB for
+base.en) to ~/.cache/huggingface.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import signal
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import sounddevice as sd
+
+SAMPLE_RATE = 16000
+MODEL_SIZE = os.environ.get("TC_WHISPER_MODEL", "base.en")
+PID_FILE = Path("/tmp/tc-listen.pid")
+AUDIO_FILE = Path("/tmp/tc-listen.wav")
+
+
+def record_fixed(seconds: int) -> np.ndarray:
+    import wave
+
+    print(f"  🎤 recording {seconds}s…", file=sys.stderr)
+    audio = sd.rec(int(seconds * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype="float32")
+    try:
+        sd.wait()
+    except KeyboardInterrupt:
+        sd.stop()
+    audio = audio.flatten()
+    # Always save the WAV so tc-voice-identify can consume it
+    pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
+    with wave.open(str(AUDIO_FILE), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SAMPLE_RATE)
+        w.writeframes(pcm.tobytes())
+    print(f"  💾 saved {AUDIO_FILE}", file=sys.stderr)
+    return audio
+
+
+def transcribe(audio: np.ndarray) -> str:
+    from faster_whisper import WhisperModel
+
+    print(f"  🧠 transcribing via {MODEL_SIZE}…", file=sys.stderr)
+    model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
+    segments, _ = model.transcribe(
+        audio,
+        language="en",
+        vad_filter=True,
+        vad_parameters={"min_silence_duration_ms": 500},
+    )
+    return " ".join(s.text.strip() for s in segments).strip()
+
+
+def toggle_start() -> None:
+    """Fork a recorder that writes to AUDIO_FILE until TERMed, write PID file."""
+    import multiprocessing
+
+    def recorder() -> None:
+        import wave
+
+        stop = {"flag": False}
+        def handle_sigterm(_s, _f): stop["flag"] = True
+        signal.signal(signal.SIGTERM, handle_sigterm)
+
+        chunks: list[np.ndarray] = []
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32") as stream:
+            while not stop["flag"]:
+                block, _ = stream.read(SAMPLE_RATE // 10)  # 100ms
+                chunks.append(block.copy())
+
+        audio = np.concatenate(chunks) if chunks else np.zeros(0, dtype="float32")
+        # write as 16-bit PCM wav
+        pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
+        with wave.open(str(AUDIO_FILE), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(SAMPLE_RATE)
+            w.writeframes(pcm.tobytes())
+
+    p = multiprocessing.Process(target=recorder, daemon=False)
+    p.start()
+    PID_FILE.write_text(str(p.pid))
+    print(f"  🔴 recording (pid {p.pid}) — tc-listen --toggle again to stop", file=sys.stderr)
+
+
+def toggle_stop() -> str:
+    """Kill the recorder, wait for WAV, transcribe, return text."""
+    pid = int(PID_FILE.read_text())
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    # wait for writer to flush
+    for _ in range(50):
+        if AUDIO_FILE.exists() and AUDIO_FILE.stat().st_size > 44:
+            break
+        time.sleep(0.1)
+    PID_FILE.unlink(missing_ok=True)
+
+    import wave
+    with wave.open(str(AUDIO_FILE), "rb") as r:
+        raw = r.readframes(r.getnframes())
+    audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32767.0
+    return transcribe(audio)
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(prog="tc-listen", description="Push-to-talk STT for TC")
+    p.add_argument("seconds", nargs="?", type=int, default=10)
+    p.add_argument("--toggle", action="store_true", help="Sway-friendly toggle mode")
+    args = p.parse_args()
+
+    if args.toggle:
+        if PID_FILE.exists():
+            text = toggle_stop()
+            print(text)
+        else:
+            toggle_start()
+        return 0
+
+    audio = record_fixed(args.seconds)
+    print(transcribe(audio))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

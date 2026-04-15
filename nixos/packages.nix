@@ -13,6 +13,16 @@
     git
     gh                   # GitHub CLI
     nodejs_22            # Forge + Next.js
+
+    # ── Agent CLIs ──────────────────────────────────────────────────────
+    # The AI tooling cabinet. Claude Code is installed separately via its
+    # own installer (not in nixpkgs). These are the complementary ones.
+    aider-chat-full      # Multi-provider AI pair programmer
+    codex                # OpenAI Codex CLI
+    codex-acp            # Codex agent-control-protocol
+    gemini-cli           # Google Gemini
+    qwen-code            # Alibaba Qwen
+    ollama               # Local LLM runner (CPU variant — alias for ollama-cpu)
     # Python bundled with every library CHAROS scripts need, reachable by
     # plain `python3` or `#!/usr/bin/env python3`. Adding a python312Packages.*
     # line to systemPackages alone does NOT add to sys.path — it has to be
@@ -28,6 +38,8 @@
       face-recognition-models
       sounddevice       # Mic capture for tc-listen / tc-phone
       faster-whisper    # High-accuracy offline STT
+      speechbrain       # ECAPA-TDNN speaker embeddings — voice-print ID
+      soundfile         # Read/write WAVs for the voice-enroll pipeline
     ]))
 
     # ── The Workshop ─────────────────────────────────────────────────────
