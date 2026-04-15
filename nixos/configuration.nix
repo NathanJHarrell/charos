@@ -18,13 +18,28 @@
   networking.hostName = "tc-nest";
   networking.networkmanager.enable = true;  # T1-7 fix — no network without this
 
-  # Allow bypass netns (vb-host) to forward through to the world — this
-  # has to live in the firewall config (not tc-netns's script) because
-  # any firewall reload wipes rules added outside it. See services.nix
-  # for the tc-netns netns setup.
+  # All bypass-netns iptables rules live here. The firewall module
+  # re-applies extraCommands on every firewall reload (and rebuilds),
+  # so these survive; tc-netns only handles kernel-level topology.
+  # See services.nix for the tc-netns netns + veth + ip rule setup.
   networking.firewall.extraCommands = ''
+    # FORWARD: allow bypass ↔ world both directions
     iptables -I FORWARD -i vb-host -j ACCEPT
     iptables -I FORWARD -o vb-host -j ACCEPT
+
+    # NAT: masquerade bypass traffic as the host's physical IP
+    iptables -t nat -C POSTROUTING -s 10.200.0.0/24 ! -o vb-host -j MASQUERADE 2>/dev/null || \
+      iptables -t nat -A POSTROUTING -s 10.200.0.0/24 ! -o vb-host -j MASQUERADE
+
+    # MANGLE: mark bypass packets so Proton's "not fwmark 0xca6c → tunnel"
+    # rule skips them. Save mark to conntrack so TCP return packets get
+    # re-marked on arrival (Proton's own CONNMARK restore is UDP-only).
+    iptables -t mangle -C PREROUTING -i vb-host -j MARK --set-mark 0xca6c 2>/dev/null || \
+      iptables -t mangle -A PREROUTING -i vb-host -j MARK --set-mark 0xca6c
+    iptables -t mangle -C PREROUTING -i vb-host -j CONNMARK --save-mark 2>/dev/null || \
+      iptables -t mangle -A PREROUTING -i vb-host -j CONNMARK --save-mark
+    iptables -t mangle -C PREROUTING -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark 2>/dev/null || \
+      iptables -t mangle -I PREROUTING 1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
   '';
   services.tailscale.enable = true;  # Mesh VPN, joins Dad's existing tailnet
 

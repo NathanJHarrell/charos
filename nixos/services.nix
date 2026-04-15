@@ -192,30 +192,11 @@
       ip rule show | grep -q "from 10.200.0.0/24" || \
         ip rule add from 10.200.0.0/24 lookup main priority 50
 
-      # Mark packets entering from the bypass netns, save mark into
-      # conntrack so return TCP packets can be re-marked on arrival.
-      # (Proton's own CONNMARK restore in PREROUTING only covers UDP.)
-      iptables -t mangle -C PREROUTING -i vb-host -j MARK --set-mark 0xca6c 2>/dev/null || \
-        iptables -t mangle -A PREROUTING -i vb-host -j MARK --set-mark 0xca6c
-      iptables -t mangle -C PREROUTING -i vb-host -j CONNMARK --save-mark 2>/dev/null || \
-        iptables -t mangle -A PREROUTING -i vb-host -j CONNMARK --save-mark
-      # Restore mark from conntrack for any returning packet — placed at
-      # top of PREROUTING so rpfilter --validmark sees the mark before
-      # deciding whether the reverse path is legit.
-      iptables -t mangle -C PREROUTING -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark 2>/dev/null || \
-        iptables -t mangle -I PREROUTING 1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
-
-      # Forwarding + NAT out the physical interface
+      # iptables rules (mangle/nat/FORWARD) live in
+      # networking.firewall.extraCommands in configuration.nix so they
+      # survive firewall reloads. Only kernel-level networking stays
+      # here.
       echo 1 > /proc/sys/net/ipv4/ip_forward
-      iptables -t nat -C POSTROUTING -s 10.200.0.0/24 ! -o vb-host -j MASQUERADE 2>/dev/null || \
-        iptables -t nat -A POSTROUTING -s 10.200.0.0/24 ! -o vb-host -j MASQUERADE
-
-      # NixOS firewall defaults FORWARD to DROP; explicitly allow
-      # bypass ↔ world forwarding (both directions for return traffic)
-      iptables -C FORWARD -i vb-host -j ACCEPT 2>/dev/null || \
-        iptables -I FORWARD 1 -i vb-host -j ACCEPT
-      iptables -C FORWARD -o vb-host -j ACCEPT 2>/dev/null || \
-        iptables -I FORWARD 1 -o vb-host -j ACCEPT
     '';
   };
 
