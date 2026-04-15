@@ -1,85 +1,76 @@
 #!/usr/bin/env python3
 """desktop-grid — 4 tiled foot terminals in a 2x2 on the current workspace.
 
-CHAROS "control room" aesthetic: drawers float above a grid of terminals.
+CHAROS control-room aesthetic: drawers float above a grid of terminals.
 
-Safe against:
-- marked drawer windows (tc, grind, note, etc.) — never killed
-- re-runs — kills only windows marked 'desktop' from previous runs,
-  then respawns; floating drawers untouched
-- races — sleeps between spawn + split operations so sway has time to
-  place each window before the next command lands
+Race-free marking:
+  Every grid foot is spawned with `foot --app-id=desktop-tile`. A
+  sway for_window rule (`for_window [app_id="desktop-tile"] mark desktop`)
+  applies the mark atomically at window creation, so killing previous
+  grids is a simple `[app_id=desktop-tile] kill` — no tree-walking,
+  no async drift.
+
+Re-run safety:
+  A /tmp/desktop-grid.lock file prevents compounding when Cmd+D gets
+  spammed. If a run is in flight (<5s old), subsequent invocations no-op.
 """
 
 from __future__ import annotations
 
-import json
+import os
 import subprocess
+import sys
 import time
+from pathlib import Path
 
 STEP = 0.35
+LOCK = Path("/tmp/desktop-grid.lock")
+LOCK_TTL = 5.0
 
 
-def sway(*args: str) -> str:
-    return subprocess.run(["swaymsg", *args], capture_output=True, text=True).stdout
+def sway(*args: str) -> None:
+    subprocess.run(["swaymsg", *args], capture_output=True, check=False)
 
 
-def find_prior_desktop_ids() -> list[int]:
-    tree = json.loads(sway("-t", "get_tree"))
-    ids: list[int] = []
-
-    def walk(n: dict) -> None:
-        if n.get("app_id") == "foot" and "desktop" in (n.get("marks") or []):
-            ids.append(n["id"])
-        for c in n.get("nodes", []) + n.get("floating_nodes", []):
-            walk(c)
-
-    walk(tree)
-    return ids
-
-
-def spawn_and_mark() -> None:
-    subprocess.Popen(["foot"], start_new_session=True)
+def in_flight() -> bool:
+    if not LOCK.exists():
+        return False
+    age = time.time() - LOCK.stat().st_mtime
+    return age < LOCK_TTL
 
 
 def main() -> None:
-    # Kill only our own past desktop-grid spawns
-    for con_id in find_prior_desktop_ids():
-        sway(f"[con_id={con_id}]", "kill")
+    if in_flight():
+        print("desktop-grid: run in flight, skipping", file=sys.stderr)
+        return
+    LOCK.touch()
+
+    # Kill previous grid (anything with app_id=desktop-tile).
+    sway("[app_id=desktop-tile]", "kill")
     time.sleep(0.4)
 
-    # Spawn window 1 (fills remaining tiled area)
-    spawn_and_mark(); time.sleep(STEP)
+    # Spawn 4 foots. for_window rule marks them 'desktop' on appearance.
+    for _ in range(2):
+        subprocess.Popen(
+            ["foot", "--app-id=desktop-tile"], start_new_session=True
+        )
+        time.sleep(STEP)
 
-    # Spawn window 2 (sway default splith → two columns)
-    spawn_and_mark(); time.sleep(STEP)
-
-    # Split left column vertically and spawn window 3
     sway("focus", "left")
     sway("splitv")
-    spawn_and_mark(); time.sleep(STEP)
+    subprocess.Popen(
+        ["foot", "--app-id=desktop-tile"], start_new_session=True
+    )
+    time.sleep(STEP)
 
-    # Split right column vertically and spawn window 4
     sway("focus", "right")
     sway("splitv")
-    spawn_and_mark(); time.sleep(STEP)
+    subprocess.Popen(
+        ["foot", "--app-id=desktop-tile"], start_new_session=True
+    )
+    time.sleep(STEP)
 
-    # Mark all 4 newly-spawned foots as 'desktop' so the next run knows
-    # which to clean up. Target: unmarked foot windows on workspace 1.
-    tree = json.loads(sway("-t", "get_tree"))
-    new_ids: list[int] = []
-
-    def walk(n: dict) -> None:
-        if n.get("app_id") == "foot" and not (n.get("marks") or []):
-            new_ids.append(n["id"])
-        for c in n.get("nodes", []) + n.get("floating_nodes", []):
-            walk(c)
-
-    walk(tree)
-    for con_id in new_ids[:4]:
-        sway(f"[con_id={con_id}]", "mark", "desktop")
-
-    print(f"desktop-grid: spawned {len(new_ids[:4])} foots, marked 'desktop'")
+    print("desktop-grid: 2x2 ready")
 
 
 if __name__ == "__main__":

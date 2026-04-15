@@ -27,6 +27,10 @@ exec foot --app-id=tc-drawer -- /home/nate/.local/bin/tc-spawn
 # Auto-mark the drawer foot and send it to scratchpad on creation
 for_window [app_id="tc-drawer"] mark tc, move scratchpad
 
+# Auto-mark desktop-grid tiles as they appear (race-free — sway applies
+# the mark before the window is exposed to the rest of the session).
+for_window [app_id="desktop-tile"] mark desktop
+
 # WezTerm gets fullscreen, always
 for_window [app_id="org.wezfurlong.wezterm"] fullscreen enable
 
