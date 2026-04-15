@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# tc-power — one-line power state probe for agentic planning.
+#
+# Exits 0 if on AC, 1 if on battery. Prints a human-readable summary on stdout.
+#
+# Flags:
+#   --json     emit JSON { "ac": bool, "percent": int, "status": str, "battery": str }
+#   --quiet    no stdout, just exit code
+#   --check    alias for --quiet
+#
+# Used by TC before starting long-running builds, Corps sessions, etc.
+# Works on any Linux box with standard power_supply sysfs (including the
+# MBP via applesmc). The adapter name varies — this script discovers it.
+
+set -u
+
+PS_DIR=/sys/class/power_supply
+
+mode=human
+for arg in "$@"; do
+    case "$arg" in
+        --json) mode=json ;;
+        --quiet|--check) mode=quiet ;;
+        -h|--help)
+            sed -n '2,12p' "$0" | sed 's/^# \?//'
+            exit 0
+            ;;
+        *) echo "tc-power: unknown arg: $arg" >&2; exit 2 ;;
+    esac
+done
+
+# No power_supply dir at all? Desktop/server without a battery. Assume AC.
+if [[ ! -d "$PS_DIR" ]]; then
+    case "$mode" in
+        json)  printf '{"ac":true,"percent":null,"status":"no-battery","battery":null}\n' ;;
+        human) echo "AC (no battery sensor)" ;;
+    esac
+    exit 0
+fi
+
+# Find the AC adapter: anything with type=Mains.
+ac_online=0
+for dev in "$PS_DIR"/*; do
+    [[ -r "$dev/type" ]] || continue
+    if [[ "$(cat "$dev/type")" == "Mains" ]] && [[ -r "$dev/online" ]]; then
+        if [[ "$(cat "$dev/online")" == "1" ]]; then
+            ac_online=1
+            break
+        fi
+    fi
+done
+
+# Find the primary battery: anything with type=Battery.
+bat_dev=""
+for dev in "$PS_DIR"/*; do
+    [[ -r "$dev/type" ]] || continue
+    if [[ "$(cat "$dev/type")" == "Battery" ]]; then
+        bat_dev="$dev"
+        break
+    fi
+done
+
+if [[ -z "$bat_dev" ]]; then
+    case "$mode" in
+        json)  printf '{"ac":%s,"percent":null,"status":"no-battery","battery":null}\n' \
+                      $([[ $ac_online -eq 1 ]] && echo true || echo false) ;;
+        human) [[ $ac_online -eq 1 ]] && echo "AC (no battery)" || echo "no battery, no AC??" ;;
+    esac
+    [[ $ac_online -eq 1 ]] && exit 0 || exit 1
+fi
+
+capacity=$(cat "$bat_dev/capacity" 2>/dev/null || echo "?")
+status=$(cat "$bat_dev/status" 2>/dev/null || echo "Unknown")
+bat_name=$(basename "$bat_dev")
+
+case "$mode" in
+    json)
+        printf '{"ac":%s,"percent":%s,"status":"%s","battery":"%s"}\n' \
+               $([[ $ac_online -eq 1 ]] && echo true || echo false) \
+               "$capacity" "$status" "$bat_name"
+        ;;
+    human)
+        if [[ $ac_online -eq 1 ]]; then
+            echo "AC (${bat_name} ${capacity}%, ${status})"
+        else
+            echo "BATTERY (${bat_name} ${capacity}%, ${status})"
+        fi
+        ;;
+esac
+
+[[ $ac_online -eq 1 ]] && exit 0 || exit 1
