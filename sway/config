@@ -14,10 +14,18 @@ gaps outer 0
 # Pure charcoal. TC's color.
 output * bg #1a1a1a solid_color
 
-# ── TC Terminal — Boot ────────────────────────────────────────────────────
-# Launch foot once at sway startup. NOT exec_always — that would spawn a
-# new terminal on every config reload and stack zombies behind the drawer.
-exec foot
+# ── Boot: CHAROS desktop ──────────────────────────────────────────────────
+# The default boot state is a 2x2 grid of foot terminals (the "control room")
+# with a separate tc-spawn'd drawer hidden in the scratchpad, summonable by
+# Cmd+`. GIVE ME CHAOS. 🔥
+exec /home/nate/.local/bin/desktop-grid
+
+# TC drawer — launches claude via tc-spawn, auto-marked and hidden to
+# scratchpad by the for_window rule below. Cmd+` brings it up.
+exec foot --app-id=tc-drawer -- /home/nate/.local/bin/tc-spawn
+
+# Auto-mark the drawer foot and send it to scratchpad on creation
+for_window [app_id="tc-drawer"] mark tc, move scratchpad
 
 # WezTerm gets fullscreen, always
 for_window [app_id="org.wezfurlong.wezterm"] fullscreen enable
@@ -98,6 +106,9 @@ bindsym $mod+Shift+grave exec /home/nate/.local/bin/grind-drawer
 # Use when you need a second shell (e.g., to run nixos-rebuild while this
 # session stays put). Tiles onto the workspace under whatever floats.
 bindsym $mod+Return exec foot
+
+# Cmd+D — summon (or respawn) the desktop grid. 4 tiled foots in 2x2.
+bindsym $mod+d exec /home/nate/.local/bin/desktop-grid
 
 # Note drawer — `note` CLI opens a new vim on ~/Manor/Nathan/inbox/<stamp>.md
 # as a left-anchored floating drawer. Close vim, drawer closes with it.
