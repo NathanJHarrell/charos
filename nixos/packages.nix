@@ -13,8 +13,20 @@
     git
     gh                   # GitHub CLI
     nodejs_22            # Forge + Next.js
-    python312            # Mood engine, sensor services
-    python312Packages.pip
+    # Python bundled with every library CHAROS scripts need, reachable by
+    # plain `python3` or `#!/usr/bin/env python3`. Adding a python312Packages.*
+    # line to systemPackages alone does NOT add to sys.path — it has to be
+    # a withPackages wrap for the modules to import from the shebang.
+    (python312.withPackages (ps: with ps; [
+      pip
+      numpy
+      pillow
+      pyserial          # Serial comms (rover, WLED)
+      opencv4           # Vision primitives
+      dlib              # HOG/CNN face detectors + 128-d embeddings
+      face-recognition  # High-level wrapper on dlib
+      face-recognition-models
+    ]))
 
     # ── The Workshop ─────────────────────────────────────────────────────
     openscad             # Rover chassis design
@@ -49,14 +61,12 @@
     v4l-utils            # v4l2-ctl — camera debugging
 
     # ── Vision & AI ──────────────────────────────────────────────────────
-    # python312Packages.opencv   # Face detection — package name unstable across NixOS versions, skip for now
-    # python312Packages.mediapipe — NOT in nixpkgs, needs custom overlay (T1-4 fix)
-    # TODO: build mediapipe overlay when face detection work resumes
-    python312Packages.numpy
-    python312Packages.pillow
+    # opencv4, dlib, face-recognition are bundled into the python3
+    # above via withPackages. Keeping this section header for future
+    # non-Python tools (models, datasets, etc.).
+    # python312Packages.mediapipe — NOT in nixpkgs, needs custom overlay
 
     # ── Hardware & Sensors ───────────────────────────────────────────────
-    python312Packages.pyserial   # Serial comms (rover, WLED)
     i2c-tools                    # I2C sensor debugging
 
     # ── Media ────────────────────────────────────────────────────────────

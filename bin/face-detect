@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""face-detect — Phase 2 sanity check for the CHAROS face-rec pipeline.
+
+Grabs a single frame from /dev/video0, runs dlib's HOG face detector
+on it, prints the count + bounding boxes, and writes an annotated
+image to /tmp/face-detect.png so Dad can eyeball it.
+
+Phase 2 success = "yes, there is a face in the picture and we know
+where it is." No identification yet — that's Phase 3.
+"""
+
+from __future__ import annotations
+
+import sys
+import time
+from pathlib import Path
+
+import cv2
+import face_recognition
+
+OUT_RAW = Path("/tmp/face-detect-raw.png")
+OUT_ANNOTATED = Path("/tmp/face-detect.png")
+
+
+def main() -> int:
+    cap = cv2.VideoCapture("/dev/video0", cv2.CAP_V4L2)
+    if not cap.isOpened():
+        print("✗ could not open /dev/video0", file=sys.stderr)
+        return 1
+
+    # First frame after open is often junk; discard a few
+    for _ in range(3):
+        cap.read()
+        time.sleep(0.05)
+
+    ok, frame = cap.read()
+    cap.release()
+    if not ok or frame is None:
+        print("✗ capture returned no frame", file=sys.stderr)
+        return 1
+
+    print(f"  captured frame: {frame.shape[1]}x{frame.shape[0]}")
+    cv2.imwrite(str(OUT_RAW), frame)
+
+    # face_recognition wants RGB; OpenCV delivers BGR
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # HOG is fast, CPU-only, good enough for a 1280x720 frame
+    t0 = time.perf_counter()
+    locations = face_recognition.face_locations(rgb, model="hog")
+    dt = (time.perf_counter() - t0) * 1000
+
+    print(f"  detection: {len(locations)} face(s) in {dt:.0f} ms")
+    for i, (top, right, bottom, left) in enumerate(locations):
+        w, h = right - left, bottom - top
+        print(f"    face {i}: top-left=({left},{top}) size={w}x{h}")
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 3)
+
+    cv2.imwrite(str(OUT_ANNOTATED), frame)
+    print(f"  annotated: {OUT_ANNOTATED}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
