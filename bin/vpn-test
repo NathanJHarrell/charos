@@ -1,0 +1,29 @@
+#!/run/current-system/sw/bin/bash
+set -u
+OUT=/tmp/vpn-test.log
+: > "$OUT"
+
+probe() {
+  local label="$1"; shift
+  echo "" >> "$OUT"
+  echo "--- $label" >> "$OUT"
+  echo "  $ $*" >> "$OUT"
+  { timeout 8 "$@" 2>&1; } | sed 's/^/    /' >> "$OUT"
+}
+
+cleanup() {
+  echo "=== tearing Proton down ===" >> "$OUT"
+  sudo systemctl stop wg-quick-proton-us-nj >/dev/null 2>&1
+}
+trap cleanup EXIT
+
+echo "=== vpn-test @ $(date -Iseconds) ===" >> "$OUT"
+sudo systemctl start wg-quick-proton-us-nj
+sleep 3
+
+probe "bypass curl https://1.1.1.1 (TLS works?)" bypass curl -sI --max-time 8 https://1.1.1.1
+probe "bypass curl https://cloudflare.com (DNS + TLS)" bypass curl -sI --max-time 8 https://cloudflare.com
+probe "bypass getent anthropic" bypass getent ahosts api.anthropic.com
+probe "bypass curl anthropic by ip direct (no dns)" bypass curl -sI --max-time 8 --resolve api.anthropic.com:443:160.79.104.10 https://api.anthropic.com
+probe "bypass curl anthropic normal" bypass curl -sI --max-time 8 https://api.anthropic.com
+probe "bypass tcp connect to anthropic:443 (nc)" bypass timeout 5 bash -c 'exec 3<>/dev/tcp/160.79.104.10/443 && echo "connected" || echo "failed"'

@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""tc-enroll — register a face in the CHAROS recognition roster.
+
+Usage:
+  tc-enroll <name> [--frames N] [--delay SECONDS] [--device PATH]
+
+Captures N frames (default 20) from the webcam with a delay between
+each (default 0.3 s). For each frame, requires exactly one face to be
+detected. Computes dlib's 128-d face embedding for that face and
+stores all embeddings under ~/TC-Vault/face_db/<name>.json.
+
+Phase 4 (live recognition) will load every json in face_db/ and
+match streamed faces against the averaged embedding of each.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import cv2
+import face_recognition
+
+DB_DIR = Path.home() / "TC-Vault" / "face_db"
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def prime_camera(device: str):
+    cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
+    if not cap.isOpened():
+        sys.exit(f"tc-enroll: failed to open {device}")
+    # Facetimehd needs a warmup; drop a few frames
+    for _ in range(3):
+        cap.read()
+        time.sleep(0.1)
+    return cap
+
+
+def countdown(seconds: int = 3) -> None:
+    for n in range(seconds, 0, -1):
+        print(f"  starting in {n}…", end="\r", flush=True)
+        time.sleep(1)
+    print(" " * 20, end="\r")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="tc-enroll", description="Register a face in CHAROS")
+    parser.add_argument("name", help="Person's name (used as filename)")
+    parser.add_argument("--frames", type=int, default=20, help="target number of good frames (default 20)")
+    parser.add_argument("--delay", type=float, default=0.3, help="seconds between capture attempts")
+    parser.add_argument("--device", default="/dev/video0")
+    args = parser.parse_args()
+
+    slug = args.name.strip()
+    if not slug:
+        sys.exit("tc-enroll: empty name")
+    out_path = DB_DIR / f"{slug}.json"
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+
+    if out_path.exists():
+        ans = input(f"  {slug}.json already exists — overwrite? [y/N] ").strip().lower()
+        if ans != "y":
+            print("  aborted")
+            return 1
+
+    print(f"\n  enrolling {slug}")
+    print(f"  target: {args.frames} good frames (1 face per frame)")
+    print("  look at the camera. vary your angle a little — helps the model generalize.\n")
+    countdown(3)
+
+    cap = prime_camera(args.device)
+
+    encodings: list[list[float]] = []
+    attempts = 0
+    skipped_no_face = 0
+    skipped_multi_face = 0
+
+    try:
+        while len(encodings) < args.frames and attempts < args.frames * 5:
+            attempts += 1
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                continue
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            locs = face_recognition.face_locations(rgb, model="hog")
+            if len(locs) == 0:
+                skipped_no_face += 1
+                bar = f"[{len(encodings)}/{args.frames}] no face…"
+            elif len(locs) > 1:
+                skipped_multi_face += 1
+                bar = f"[{len(encodings)}/{args.frames}] {len(locs)} faces (skip)"
+            else:
+                encs = face_recognition.face_encodings(rgb, known_face_locations=locs)
+                if encs:
+                    encodings.append(encs[0].tolist())
+                    bar = f"[{len(encodings)}/{args.frames}] ✓"
+                else:
+                    bar = f"[{len(encodings)}/{args.frames}] enc failed"
+            print(f"  {bar:40s}", end="\r", flush=True)
+            time.sleep(args.delay)
+    finally:
+        cap.release()
+
+    print(" " * 50, end="\r")
+
+    if len(encodings) < args.frames // 2:
+        sys.exit(
+            f"\n  ✗ only {len(encodings)} good frames out of {args.frames} target; aborting.\n"
+            f"    no-face: {skipped_no_face}  multi-face: {skipped_multi_face}"
+        )
+
+    payload = {
+        "name": slug,
+        "enrolled_at": now_iso(),
+        "device": args.device,
+        "encoding_count": len(encodings),
+        "encodings": encodings,
+    }
+    out_path.write_text(json.dumps(payload, indent=2))
+
+    print(f"\n  ✓ {slug} enrolled")
+    print(f"    frames captured: {len(encodings)} / {args.frames}")
+    print(f"    skipped no-face: {skipped_no_face}")
+    print(f"    skipped multi-face: {skipped_multi_face}")
+    print(f"    saved: {out_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

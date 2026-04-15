@@ -72,6 +72,7 @@
     # ── Media ────────────────────────────────────────────────────────────
     mpv                  # Video player
     ffmpeg               # Video processing
+    imv                  # Wayland-native image viewer — imv /path/to.png
 
     # ── Utilities ────────────────────────────────────────────────────────
     unzip

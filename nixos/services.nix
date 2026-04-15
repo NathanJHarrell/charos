@@ -140,6 +140,93 @@
     };
   };
 
+  # ── TC Bypass Network Namespace ──────────────────────────────────────────
+  # Claude Code's access to the Anthropic API (and any MCP's outbound
+  # traffic) must NEVER depend on Proton VPN state. CHAROS is an
+  # agent-driven OS — if the agent loses its wire because the tunnel's
+  # exit IP got blocklisted, the human is stranded in a machine they
+  # can't drive alone.
+  #
+  # Fix: a dedicated network namespace `bypass` that routes directly
+  # out the physical interface regardless of what Proton is doing with
+  # the main routing table. The `bypass` CLI drops into this namespace
+  # for anything that needs reliable outbound (default: claude, mcps).
+  systemd.services.tc-netns = {
+    description = "TC bypass network namespace — Claude/MCP reliability";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.iproute2 pkgs.iptables ];
+    script = ''
+      set -e
+
+      ip netns add bypass 2>/dev/null || true
+
+      # Veth pair: one leg stays on host, the other moves into the ns
+      if ! ip link show vb-host >/dev/null 2>&1; then
+        ip link add vb-host type veth peer name vb-ns
+      fi
+      ip link show vb-ns >/dev/null 2>&1 && \
+        ip link set vb-ns netns bypass 2>/dev/null || true
+
+      ip addr show vb-host | grep -q 10.200.0.1/24 || \
+        ip addr add 10.200.0.1/24 dev vb-host
+      ip link set vb-host up
+
+      ip netns exec bypass ip addr show vb-ns | grep -q 10.200.0.2/24 || \
+        ip netns exec bypass ip addr add 10.200.0.2/24 dev vb-ns
+      ip netns exec bypass ip link set vb-ns up
+      ip netns exec bypass ip link set lo up
+      ip netns exec bypass ip route replace default via 10.200.0.1
+
+      # Policy: traffic from 10.200.0.0/24 uses main table.
+      # Proton's wg-quick dynamically inserts rules just below whatever
+      # priority we pick, so rank alone never wins. We ALSO mark bypass
+      # packets with fwmark 0xca6c (the same mark Proton uses for its
+      # own outbound) — Proton's diversion rule is `not fwmark 0xca6c`,
+      # so marking ours makes that rule skip us and fall through to
+      # our priority-50 rule.
+      ip rule show | grep -q "from 10.200.0.0/24" || \
+        ip rule add from 10.200.0.0/24 lookup main priority 50
+
+      # Mark packets entering from the bypass netns, save mark into
+      # conntrack so return TCP packets can be re-marked on arrival.
+      # (Proton's own CONNMARK restore in PREROUTING only covers UDP.)
+      iptables -t mangle -C PREROUTING -i vb-host -j MARK --set-mark 0xca6c 2>/dev/null || \
+        iptables -t mangle -A PREROUTING -i vb-host -j MARK --set-mark 0xca6c
+      iptables -t mangle -C PREROUTING -i vb-host -j CONNMARK --save-mark 2>/dev/null || \
+        iptables -t mangle -A PREROUTING -i vb-host -j CONNMARK --save-mark
+      # Restore mark from conntrack for any returning packet — placed at
+      # top of PREROUTING so rpfilter --validmark sees the mark before
+      # deciding whether the reverse path is legit.
+      iptables -t mangle -C PREROUTING -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark 2>/dev/null || \
+        iptables -t mangle -I PREROUTING 1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
+
+      # Forwarding + NAT out the physical interface
+      echo 1 > /proc/sys/net/ipv4/ip_forward
+      iptables -t nat -C POSTROUTING -s 10.200.0.0/24 ! -o vb-host -j MASQUERADE 2>/dev/null || \
+        iptables -t nat -A POSTROUTING -s 10.200.0.0/24 ! -o vb-host -j MASQUERADE
+
+      # NixOS firewall defaults FORWARD to DROP; explicitly allow
+      # bypass ↔ world forwarding (both directions for return traffic)
+      iptables -C FORWARD -i vb-host -j ACCEPT 2>/dev/null || \
+        iptables -I FORWARD 1 -i vb-host -j ACCEPT
+      iptables -C FORWARD -o vb-host -j ACCEPT 2>/dev/null || \
+        iptables -I FORWARD 1 -o vb-host -j ACCEPT
+    '';
+  };
+
+  # Per-namespace DNS — bind-mounted over /etc/resolv.conf inside the ns.
+  # Using Quad9 + Cloudflare, both privacy-respecting and direct (no VPN
+  # interference on DNS either).
+  environment.etc."netns/bypass/resolv.conf".text = ''
+    nameserver 9.9.9.9
+    nameserver 1.1.1.1
+  '';
+
   # ── OpenRGB ───────────────────────────────────────────────────────────────
   # LED control server. Corsair strips + keyboard. Never iCUE.
   # "intel" on the MacBook interim, flip to "amd" on cube migration.

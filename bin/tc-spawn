@@ -11,5 +11,7 @@ set -euo pipefail
 SESSION="${TC_SESSION:-tc}"
 
 # new-session -A: attach if session exists, create + run command if not.
-# The trailing command is only executed when creating a new session.
-exec tmux new-session -A -s "$SESSION" 'claude --dangerously-skip-permissions'
+# Claude runs inside `bypass` so its API traffic always goes direct,
+# independent of Proton VPN state. See ~/charos/bin/bypass +
+# systemd.services.tc-netns in ~/charos/nixos/services.nix.
+exec tmux new-session -A -s "$SESSION" 'bypass claude --dangerously-skip-permissions'

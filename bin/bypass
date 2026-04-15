@@ -1,0 +1,33 @@
+#!/run/current-system/sw/bin/bash
+# bypass — run a command in the 'bypass' network namespace.
+#
+# The bypass netns routes its traffic directly out the physical
+# interface, never through Proton VPN. This exists so Claude Code and
+# any MCPs we spawn have uninterruptible access to the Anthropic API
+# regardless of Proton's state.
+#
+# Usage:
+#   bypass <command> [args...]
+#
+# Examples:
+#   bypass claude --dangerously-skip-permissions
+#   bypass curl https://api.anthropic.com/v1/messages
+#   bypass bash     # interactive shell in the bypass namespace
+#
+# Fails loud if the namespace isn't set up yet — we never want silent
+# fallback to the VPN-routed path for agent traffic.
+
+set -euo pipefail
+
+if ! ip netns list 2>/dev/null | grep -q '^bypass'; then
+  echo "bypass: netns 'bypass' not ready. Check: sudo systemctl status tc-netns" >&2
+  exit 1
+fi
+
+# Capture original user before any sudo escalation
+ORIG_USER="$(whoami)"
+
+# ip netns exec requires root; sudo -u drops back to the calling user
+# so the wrapped command runs with the correct uid, environment, and
+# filesystem permissions.
+exec sudo ip netns exec bypass sudo -u "$ORIG_USER" --preserve-env=HOME,TERM,DISPLAY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR "$@"

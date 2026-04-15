@@ -17,6 +17,15 @@
   # ── Identity ─────────────────────────────────────────────────────────────
   networking.hostName = "tc-nest";
   networking.networkmanager.enable = true;  # T1-7 fix — no network without this
+
+  # Allow bypass netns (vb-host) to forward through to the world — this
+  # has to live in the firewall config (not tc-netns's script) because
+  # any firewall reload wipes rules added outside it. See services.nix
+  # for the tc-netns netns setup.
+  networking.firewall.extraCommands = ''
+    iptables -I FORWARD -i vb-host -j ACCEPT
+    iptables -I FORWARD -o vb-host -j ACCEPT
+  '';
   services.tailscale.enable = true;  # Mesh VPN, joins Dad's existing tailnet
 
   # ── Proton VPN (WireGuard) ────────────────────────────────────────────────
@@ -25,7 +34,10 @@
   # with `sudo mv` once per server.
   networking.wg-quick.interfaces.proton-us-nj = {
     configFile = "/etc/wireguard/proton-us-nj.conf";
-    autostart = true;
+    # Not autostart — Proton blocks Anthropic API traffic from its exit
+    # IPs, so auto-up on every rebuild strands Dad. Bring up manually
+    # via `vpn on` when research/privacy matters.
+    autostart = false;
   };
   # time.timeZone conflicts with automatic-timezoned in services.nix (T1-2 fix)
   # timezone is managed dynamically — set manually if automatic-timezoned ever gets removed
