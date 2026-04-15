@@ -203,6 +203,22 @@ if [ -d "$HOME/charos/scripts" ]; then
   ok "CHAROS scripts linked"
 fi
 
+# Symlink TC's CLIs into ~/.local/bin (source of truth: ~/charos/bin/)
+mkdir -p "$HOME/.local/bin"
+for s in bus tc-drawer try-layout tc-spawn; do
+  if [ -f "$HOME/charos/bin/$s" ]; then
+    chmod +x "$HOME/charos/bin/$s"
+    ln -sf "$HOME/charos/bin/$s" "$HOME/.local/bin/$s"
+  fi
+done
+ok "TC CLIs linked into ~/.local/bin"
+
+# Symlink dotfiles for foot + tmux (source of truth in repo)
+mkdir -p "$HOME/.config/foot" "$HOME/.config/tmux"
+[ -f "$HOME/charos/foot/foot.ini" ] && ln -sf "$HOME/charos/foot/foot.ini" "$HOME/.config/foot/foot.ini"
+[ -f "$HOME/charos/tmux/tmux.conf" ] && ln -sf "$HOME/charos/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
+ok "foot + tmux dotfiles linked"
+
 # ── 7. Shell setup ────────────────────────────────────────────────────────────
 step "9. Shell environment..."
 # Link zshrc if not already done

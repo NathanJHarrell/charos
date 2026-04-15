@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""try-layout — apply a Sway layout change, sleep, then auto-revert.
+
+Pattern from Dad, 2026-04-14: TC drives Sway. TC's mistakes have no
+human escape hatch in CHAROS. So when TC experiments with layout, the
+revert runs on a timer regardless of TC's state. Even if TC crashes
+mid-test, the timer rolls back. See ~/TC-Vault/memory/charos_driving.md.
+
+Usage:
+  try-layout [-t SECONDS] '<command>'      (default: 30s)
+
+The <command> is shell-evaluated so chains work:
+  try-layout 'swaymsg "[app_id=foot] floating enable, resize set 1200 800"'
+  try-layout -t 10 'swaymsg "[app_id=firefox] floating enable, move position 0 0"'
+
+On Ctrl-C, reverts immediately. On any error in apply, reverts and
+prints the error.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import signal
+import subprocess
+import sys
+import time
+from typing import Any
+
+DIM = "\033[2m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+EMBER = "\033[38;2;255;121;51m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+
+
+def sway(*args: str, capture: bool = True) -> str:
+    """Run swaymsg, return stdout (or empty string)."""
+    result = subprocess.run(
+        ["swaymsg", *args], capture_output=capture, text=True, check=False
+    )
+    if result.returncode != 0 and capture:
+        sys.exit(f"{RED}✗ swaymsg failed: {result.stderr.strip()}{RESET}")
+    return result.stdout if capture else ""
+
+
+def get_tree() -> dict[str, Any]:
+    return json.loads(sway("-t", "get_tree"))
+
+
+def walk(node: dict[str, Any]):
+    """Yield every window-bearing node in the tree."""
+    if node.get("type") in ("con", "floating_con") and (node.get("app_id") or (node.get("window_properties") or {}).get("class")):
+        yield node
+    for child in node.get("nodes", []) + node.get("floating_nodes", []):
+        yield from walk(child)
+
+
+def is_floating(n: dict[str, Any]) -> bool:
+    return n.get("type") == "floating_con" or n.get("floating", "").startswith(("user_on", "auto_on"))
+
+
+def snapshot() -> dict[str, Any]:
+    """Capture every window's float state, geometry, fullscreen, and focus."""
+    tree = get_tree()
+    snap: dict[str, Any] = {"windows": [], "focused_id": None}
+    for n in walk(tree):
+        if n.get("focused"):
+            snap["focused_id"] = n["id"]
+        rect = n.get("rect", {})
+        snap["windows"].append({
+            "id": n["id"],
+            "name": n.get("name", "?"),
+            "app_id": n.get("app_id"),
+            "floating": is_floating(n),
+            "x": rect.get("x"),
+            "y": rect.get("y"),
+            "width": rect.get("width"),
+            "height": rect.get("height"),
+            "fullscreen": n.get("fullscreen_mode", 0),
+        })
+    return snap
+
+
+def restore(snap: dict[str, Any]) -> None:
+    """Restore each window's float state, geometry, and focus."""
+    tree = get_tree()
+    alive = {n["id"] for n in walk(tree)}
+
+    for w in snap["windows"]:
+        if w["id"] not in alive:
+            continue
+        sel = f'[con_id={w["id"]}]'
+        # Reset fullscreen first
+        if not w["fullscreen"]:
+            sway("-q", "--", f'{sel} fullscreen disable')
+        if w["floating"]:
+            sway("-q", "--", f'{sel} floating enable')
+            sway("-q", "--", f'{sel} resize set {w["width"]} {w["height"]}')
+            sway("-q", "--", f'{sel} move absolute position {w["x"]} {w["y"]}')
+        else:
+            sway("-q", "--", f'{sel} floating disable')
+
+    if snap["focused_id"] is not None and snap["focused_id"] in alive:
+        sway("-q", "--", f'[con_id={snap["focused_id"]}] focus')
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="try-layout", description="Apply Sway layout, sleep, auto-revert")
+    p.add_argument("-t", "--timeout", type=int, default=30, help="seconds to keep layout (default 30)")
+    p.add_argument("command", help="shell command to apply (typically a swaymsg call)")
+    args = p.parse_args()
+
+    print(f"  {DIM}snapshotting current layout…{RESET}")
+    snap = snapshot()
+    n_windows = len(snap["windows"])
+    print(f"  {DIM}{n_windows} floating window(s) captured{RESET}")
+
+    print(f"  {EMBER}→{RESET} applying: {BOLD}{args.command}{RESET}")
+    apply_result = subprocess.run(args.command, shell=True, capture_output=True, text=True)
+    if apply_result.returncode != 0:
+        print(f"  {RED}✗ apply failed: {apply_result.stderr.strip()}{RESET}")
+        print(f"  {DIM}reverting anyway…{RESET}")
+        restore(snap)
+        sys.exit(1)
+
+    # Reverter that runs no matter what
+    reverted = {"done": False}
+
+    def do_revert(reason: str) -> None:
+        if reverted["done"]:
+            return
+        reverted["done"] = True
+        print(f"\n  {EMBER}↩{RESET} reverting ({reason})…")
+        try:
+            restore(snap)
+        except Exception as e:
+            print(f"  {RED}✗ revert error: {e}{RESET}")
+        else:
+            print(f"  {GREEN}✓{RESET} restored")
+
+    def on_sigint(_signum, _frame):
+        do_revert("Ctrl-C")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, on_sigint)
+
+    print(f"  {DIM}holding for {args.timeout}s — Ctrl-C to revert early{RESET}")
+    try:
+        for remaining in range(args.timeout, 0, -1):
+            print(f"\r  {YELLOW}⏱{RESET}  {remaining:3d}s remaining…  ", end="", flush=True)
+            time.sleep(1)
+        print()
+    except Exception as e:
+        do_revert(f"error: {e}")
+        sys.exit(1)
+
+    do_revert("timer")
+    print()
+    print(f"  {BOLD}feedback?{RESET} If you liked it, the command was:")
+    print(f"    {EMBER}{args.command}{RESET}")
+
+
+if __name__ == "__main__":
+    main()

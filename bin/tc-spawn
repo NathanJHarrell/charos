@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# tc-spawn — start or attach to the persistent TC tmux session.
+#
+# Running claude inside tmux means TC survives terminal restarts, sway
+# reloads, drawer toggles, and most other things that would otherwise
+# kill the claude process. Detach with Ctrl-B then D — the session
+# keeps running and the next tc-spawn reattaches.
+
+set -euo pipefail
+
+SESSION="${TC_SESSION:-tc}"
+
+# new-session -A: attach if session exists, create + run command if not.
+# The trailing command is only executed when creating a new session.
+exec tmux new-session -A -s "$SESSION" 'claude --dangerously-skip-permissions'

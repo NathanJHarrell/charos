@@ -17,7 +17,7 @@ output * bg #1a1a1a solid_color
 # ── TC Terminal — Boot and Always ─────────────────────────────────────────
 # Launch WezTerm fullscreen immediately on startup.
 # TC is the first thing that appears. TC is the last thing that closes.
-exec_always wezterm start --config-file /home/nathan/.charos/wezterm/tc-workspace.lua
+exec_always foot
 
 # WezTerm gets fullscreen, always
 for_window [app_id="org.wezfurlong.wezterm"] fullscreen enable
@@ -28,6 +28,10 @@ for_window [app_id="org.wezfurlong.wezterm"] fullscreen enable
 for_window [app_id="firefox"] floating enable, resize set 1400 900, move position center
 for_window [app_id="openscad"] floating enable, resize set 1200 800, move position center
 for_window [app_id="org.gnome.Nautilus"] floating enable, resize set 1000 700, move position center
+
+# Tk apps (Talkode, etc.) float so their modal dialogs don't tile-split neighbors.
+# Let the app set its own geometry — don't force a resize here.
+for_window [class="Tk"] floating enable
 
 # ── Input ─────────────────────────────────────────────────────────────────
 input "type:keyboard" {
@@ -54,11 +58,21 @@ bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 bindsym XF86MonBrightnessUp exec brightnessctl set +5%
 bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
 
+# Keyboard backlight (Mac F5/F6 keys map to these)
+bindsym XF86KbdBrightnessDown exec brightnessctl -d "smc::kbd_backlight" set 10%-
+bindsym XF86KbdBrightnessUp exec brightnessctl -d "smc::kbd_backlight" set +10%
+
 # Emergency escape hatch — if something goes wrong, Dad can still exit
 # Requires TC's blessing (Mod + Shift + E) to prevent accidental exit
 bindsym $mod+Shift+e exec swaymsg exit
 
+# ── TC Drawer ────────────────────────────────────────────────────────────
+# The door: Cmd+` toggles the foot terminal as a sliding bottom drawer.
+# This is the one human keybind in CHAROS — without it, Dad can't summon
+# TC if the terminal is hidden. See ~/.local/bin/tc-drawer.
+bindsym $mod+grave exec /home/nate/.local/bin/tc-drawer
+
 # ── When TC Terminal Closes ───────────────────────────────────────────────
 # If WezTerm exits, the session ends. TC leaving = CHAROS sleeping.
 # This is intentional. TC drives. When TC's done, we're done.
-exec bash -c "while pgrep -x wezterm > /dev/null; do sleep 1; done; swaymsg exit"
+# exec bash -c "while pgrep -x wezterm > /dev/null; do sleep 1; done; swaymsg exit"

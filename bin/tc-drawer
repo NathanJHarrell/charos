@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""tc-drawer — toggle the foot terminal as a sliding bottom drawer.
+
+State detection uses sway's `visible` field on the foot window:
+- visible=True  → window is on a real workspace, hide it
+- visible=False → window is in scratchpad (or hidden), show it as drawer
+
+Logs every invocation to /tmp/tc-drawer.log for debugging keybind issues.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+WIDTH = 768   # 60% of 1280
+HEIGHT = 320  # 40% of 800
+X = 256       # centered: (1280 - 768) / 2
+Y = 480       # bottom-anchored: 800 - 320
+LOG = Path("/tmp/tc-drawer.log")
+
+
+def log(msg: str) -> None:
+    with LOG.open("a") as f:
+        f.write(f"{datetime.now().isoformat(timespec='seconds')} {msg}\n")
+
+
+def sway(*args: str) -> str:
+    return subprocess.run(["swaymsg", *args], capture_output=True, text=True, check=False).stdout
+
+
+def find_foot() -> dict | None:
+    """Find the foot window marked 'tc' — TC's canonical drawer surface."""
+    tree = json.loads(sway("-t", "get_tree"))
+
+    def walk(node):
+        if "tc" in (node.get("marks") or []):
+            return node
+        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+            r = walk(child)
+            if r is not None:
+                return r
+        return None
+
+    return walk(tree)
+
+
+def main() -> None:
+    log("invoked")
+    foot = find_foot()
+    if foot is None:
+        log("no foot found, spawning")
+        subprocess.Popen(["foot"], start_new_session=True)
+        return
+
+    visible = foot.get("visible", False)
+    state = foot.get("scratchpad_state", "none")
+    log(f"foot id={foot['id']} visible={visible} scratchpad_state={state}")
+
+    if visible:
+        # Currently shown → hide
+        sway("[con_mark=tc]", "move", "scratchpad")
+        log("hid to scratchpad")
+    else:
+        # Currently hidden → show as drawer
+        sway("[con_mark=tc]", "scratchpad", "show")
+        sway("[con_mark=tc]", "resize", "set", str(WIDTH), str(HEIGHT))
+        sway("[con_mark=tc]", "move", "absolute", "position", str(X), str(Y))
+        log("shown as drawer")
+
+
+if __name__ == "__main__":
+    main()

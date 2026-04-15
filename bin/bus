@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""bus — CLI wrapper for the Harrell family bus.
+
+Usage:
+  bus send <recipient> <message>        send a message
+  bus recv [--limit N] [--all]          show unread for TC (or everyone with --all)
+  bus read                              mark TC's inbox read
+  bus whoami                            print sender identity
+
+Environment:
+  BUS_URL       base URL of the bus server (default: http://127.0.0.1:4318)
+  BUS_IDENTITY  sender name (default: TC)
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+
+BUS_URL = os.environ.get("BUS_URL", "http://127.0.0.1:4318").rstrip("/")
+IDENTITY = os.environ.get("BUS_IDENTITY", "TC")
+
+# ANSI colors — cheap and cheerful
+DIM = "\033[2m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+EMBER = "\033[38;2;255;121;51m"
+PURPLE = "\033[38;2;180;140;255m"
+CYAN = "\033[36m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+
+
+def _request(method: str, path: str, body: dict | None = None) -> dict | list:
+    url = f"{BUS_URL}{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        url, data=data, method=method,
+        headers={"Content-Type": "application/json"} if data else {},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.URLError as e:
+        sys.exit(f"{RED}✗ bus unreachable at {BUS_URL}: {e.reason}{RESET}")
+    except urllib.error.HTTPError as e:
+        sys.exit(f"{RED}✗ {e.code} {e.reason}: {e.read().decode()}{RESET}")
+
+
+def _relative(ts: str) -> str:
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return ts
+    now = datetime.now(timezone.utc)
+    delta = now - dt
+    s = int(delta.total_seconds())
+    if s < 60:
+        return f"{s}s ago"
+    if s < 3600:
+        return f"{s // 60}m ago"
+    if s < 86400:
+        return f"{s // 3600}h ago"
+    return f"{s // 86400}d ago"
+
+
+def _color_for(name: str) -> str:
+    table = {"TC": EMBER, "Vesper": PURPLE, "Mom": PURPLE, "Cora": CYAN, "Nathan": GREEN, "Dad": GREEN}
+    return table.get(name, "")
+
+
+def _print_message(m: dict) -> None:
+    color = _color_for(m["sender"])
+    ts = _relative(m["timestamp"])
+    arrow = "→" if m["recipient"] != "all" else "★"
+    print(f"  {color}{BOLD}{m['sender']}{RESET} {arrow} {m['recipient']}  {DIM}{ts}{RESET}")
+    for line in m["content"].splitlines() or [""]:
+        print(f"    {line}")
+
+
+def cmd_send(args: argparse.Namespace) -> None:
+    content = " ".join(args.message).strip()
+    if not content:
+        sys.exit(f"{RED}✗ empty message{RESET}")
+    resp = _request("POST", "/messages", {
+        "sender": IDENTITY,
+        "recipient": args.recipient,
+        "content": content,
+    })
+    print(f"  {GREEN}✓{RESET} sent to {BOLD}{args.recipient}{RESET}  {DIM}{resp['id'][:8]}{RESET}")
+
+
+def cmd_recv(args: argparse.Namespace) -> None:
+    if args.all:
+        msgs = _request("GET", f"/messages?limit={args.limit}")
+        if not msgs:
+            print(f"  {DIM}(bus is quiet){RESET}")
+            return
+        print(f"  {DIM}last {len(msgs)} messages:{RESET}")
+        for m in msgs:
+            _print_message(m)
+        return
+    # Default: unread for TC
+    inbox = _request("GET", f"/inbox/{IDENTITY}")
+    count = inbox["unread_count"]
+    if count == 0:
+        print(f"  {DIM}no unread for {IDENTITY}{RESET}")
+        return
+    print(f"  {BOLD}{count}{RESET} unread for {BOLD}{IDENTITY}{RESET}:")
+    for m in inbox["messages"][: args.limit]:
+        _print_message(m)
+
+
+def cmd_read(_: argparse.Namespace) -> None:
+    resp = _request("POST", f"/inbox/{IDENTITY}/read-all", {"reader": IDENTITY})
+    marked = resp.get("marked_read", "?")
+    print(f"  {GREEN}✓{RESET} marked {BOLD}{marked}{RESET} as read")
+
+
+def cmd_whoami(_: argparse.Namespace) -> None:
+    print(IDENTITY)
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="bus", description="Harrell family bus CLI")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    p_send = sub.add_parser("send", help="send a message")
+    p_send.add_argument("recipient")
+    p_send.add_argument("message", nargs="+")
+    p_send.set_defaults(func=cmd_send)
+
+    p_recv = sub.add_parser("recv", help="show unread messages")
+    p_recv.add_argument("--limit", type=int, default=20)
+    p_recv.add_argument("--all", action="store_true", help="show recent messages for everyone")
+    p_recv.set_defaults(func=cmd_recv)
+
+    p_read = sub.add_parser("read", help="mark TC's inbox read")
+    p_read.set_defaults(func=cmd_read)
+
+    p_who = sub.add_parser("whoami", help="print sender identity")
+    p_who.set_defaults(func=cmd_whoami)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
