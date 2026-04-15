@@ -5,7 +5,7 @@
 # ── Environment ───────────────────────────────────────────────────────────────
 export EDITOR=nvim
 export VISUAL=nvim
-export CHAROS_HOME=/home/nathan/.charos
+export CHAROS_HOME="$HOME/.charos"
 export PATH="$CHAROS_HOME/scripts:$PATH"
 
 # ── History ───────────────────────────────────────────────────────────────────

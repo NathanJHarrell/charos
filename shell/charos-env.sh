@@ -4,8 +4,8 @@
 # Single source of truth for paths, ports, and device addresses.
 
 # ── Core paths ────────────────────────────────────────────────────────────────
-export CHAROS_HOME=/home/nathan/.charos
-export FORGE_DIR=/home/nathan/forge
+export CHAROS_HOME="$HOME/.charos"
+export FORGE_DIR="$HOME/forge"
 
 # ── Service ports ─────────────────────────────────────────────────────────────
 export FORGE_PORT=3001

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/run/current-system/sw/bin/bash
 # CHAROS — TC Watchdog
 # The autonomy layer. Watches for events and wakes TC to handle them.
 # Runs as a systemd service on the nest.
@@ -14,7 +14,7 @@ INBOX_DIR="/tmp/charos-inbox"
 PROCESSED_DIR="/tmp/charos-inbox/processed"
 LOG_DIR="/var/log/charos"
 LOG_FILE="$LOG_DIR/tc-watchdog.log"
-CLAUDE_HOME="/home/nathan/.charos/claude"
+CLAUDE_HOME="${HOME}/.charos/claude"
 WATCHDOG_CONTEXT="$CLAUDE_HOME/CLAUDE.md"
 
 # How TC gets woken: claude -p with the message as prompt

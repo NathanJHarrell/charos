@@ -1,16 +1,16 @@
-#!/usr/bin/env bash
+#!/run/current-system/sw/bin/bash
 # CHAROS — Forge Health Monitor
 # Checks if Forge is alive. Tries to heal it. Escalates to TC if it can't.
 # Runs on a systemd timer every 5 minutes.
 
 # ── Config ────────────────────────────────────────────────────────────────────
-CHAROS_HOME="/home/nathan/.charos"
+CHAROS_HOME="${CHAROS_HOME:-$HOME/.charos}"
 
 # Source env (FORGE_PORT, FORGE_DIR, TC_INBOX, etc.)
 [ -f "$CHAROS_HOME/shell/charos-env.sh" ] && source "$CHAROS_HOME/shell/charos-env.sh"
 
 FORGE_PORT="${FORGE_PORT:-3001}"
-FORGE_DIR="${FORGE_DIR:-/home/nathan/forge}"
+FORGE_DIR="${FORGE_DIR:-$HOME/forge}"
 TC_INBOX="${TC_INBOX:-/tmp/charos-inbox}"
 TC_LOG_DIR="${TC_LOG_DIR:-/var/log/charos}"
 LOG_FILE="$TC_LOG_DIR/forge-monitor.log"

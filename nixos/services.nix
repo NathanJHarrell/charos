@@ -1,37 +1,54 @@
 # CHAROS — System services
 # Everything that runs in the background keeping the nest alive.
+#
+# Each service that depends on optional files or repos uses
+# ConditionPathExists= so it stays idle until the dep lands, then
+# starts automatically on next boot / systemctl start. This means
+# CHAROS on the interim MacBook isn't littered with failing units
+# while hardware + repos roll in over time.
 
 { config, pkgs, lib, ... }:
 
 {
   # ── TC Mood Engine ────────────────────────────────────────────────────────
   # Watches the room. Drives the LEDs. Knows who's home.
+  # Idle until charos-runtime (containing nest_mood.py) is cloned.
   systemd.services.tc-mood = {
     description = "TC Nest Mood Engine";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" "openrgb.service" ];
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos-runtime/nest_mood.py";
+    };
     serviceConfig = {
       ExecStart = "${pkgs.python312}/bin/python3 /home/nate/charos-runtime/nest_mood.py";
       Restart = "always";
       RestartSec = "5s";
       User = "nate";
+      Environment = "HOME=/home/nate";
     };
   };
 
   # ── Forge — Maker Project Manager ────────────────────────────────────────
   # Next.js app on port 3001. TC's project tracker.
-  # Runs as a user service so it survives reboots without manual start.
+  # Idle until the forge repo is cloned AND npm install has been run.
   systemd.services.forge = {
     description = "Forge — Maker Project Manager";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
+    unitConfig = {
+      ConditionPathExists = "/home/nate/forge/node_modules";
+    };
     serviceConfig = {
       ExecStart = "${pkgs.nodejs_22}/bin/npm run dev -- --port 3001";
       WorkingDirectory = "/home/nate/forge";
       Restart = "on-failure";
       RestartSec = "10s";
       User = "nate";
-      Environment = "NODE_ENV=development";
+      Environment = [
+        "NODE_ENV=development"
+        "HOME=/home/nate"
+      ];
     };
   };
 
@@ -39,10 +56,14 @@
   # Checks Forge every 5 minutes. Auto-restarts if down. Wakes TC if it can't.
   systemd.services.forge-monitor = {
     description = "Forge Health Monitor";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/forge/node_modules";
+    };
     serviceConfig = {
       ExecStart = "/home/nate/charos/scripts/forge-monitor.sh";
       User = "nate";
       Type = "oneshot";
+      Environment = "HOME=/home/nate";
     };
   };
   systemd.timers.forge-monitor = {
@@ -63,24 +84,27 @@
     description = "TC Watchdog — Nest Autonomy Layer";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" "tc-mood.service" ];
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos/scripts/tc-watchdog.sh";
+    };
     serviceConfig = {
       ExecStart = "/home/nate/charos/scripts/tc-watchdog.sh";
       Restart = "always";
       RestartSec = "5s";
       User = "nate";
-      # Log dir must exist
+      Environment = "HOME=/home/nate";
       RuntimeDirectory = "charos";
       LogsDirectory = "charos";
     };
-    # Ensure log directory exists
     preStart = "mkdir -p /var/log/charos /tmp/charos-inbox /tmp/charos-inbox/processed";
   };
 
   # ── OpenRGB ───────────────────────────────────────────────────────────────
   # LED control server. Corsair strips + keyboard. Never iCUE.
+  # "intel" on the MacBook interim, flip to "amd" on cube migration.
   services.hardware.openrgb = {
     enable = true;
-    motherboard = "amd";
+    motherboard = "intel";
   };
 
   # ── SSH ───────────────────────────────────────────────────────────────────
