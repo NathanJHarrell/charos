@@ -1,0 +1,78 @@
+#!/run/current-system/sw/bin/bash
+# vpn — thin wrapper around NixOS's wg-quick-<iface> systemd unit.
+#
+# Usage:
+#   vpn on          connect the tunnel
+#   vpn off         disconnect
+#   vpn status      show tunnel state + current public IP
+#   vpn toggle      on if off, off if on
+#
+# Environment:
+#   VPN_INTERFACE   interface name (default: proton-us-nj)
+
+set -euo pipefail
+
+IFACE="${VPN_INTERFACE:-proton-us-nj}"
+UNIT="wg-quick-${IFACE}.service"
+
+EMBER="\033[38;2;255;121;51m"
+DIM="\033[2m"
+GREEN="\033[32m"
+RED="\033[31m"
+RESET="\033[0m"
+
+is_active() {
+  systemctl is-active --quiet "$UNIT"
+}
+
+show_ip() {
+  local ip4 ip6
+  ip4=$(curl -s -4 --max-time 3 ifconfig.me 2>/dev/null || echo "—")
+  ip6=$(curl -s -6 --max-time 3 ifconfig.me 2>/dev/null || echo "—")
+  printf "  ${DIM}ipv4:${RESET} %s\n" "$ip4"
+  printf "  ${DIM}ipv6:${RESET} %s\n" "$ip6"
+}
+
+cmd="${1:-status}"
+
+case "$cmd" in
+  on|up|start)
+    if is_active; then
+      printf "${DIM}already up on %s${RESET}\n" "$IFACE"
+    else
+      sudo systemctl start "$UNIT"
+      printf "${GREEN}✓${RESET} ${IFACE} up\n"
+    fi
+    show_ip
+    ;;
+  off|down|stop)
+    if ! is_active; then
+      printf "${DIM}already down${RESET}\n"
+    else
+      sudo systemctl stop "$UNIT"
+      printf "${RED}✗${RESET} ${IFACE} down\n"
+    fi
+    show_ip
+    ;;
+  toggle)
+    if is_active; then exec "$0" off
+    else exec "$0" on
+    fi
+    ;;
+  status)
+    if is_active; then
+      printf "${GREEN}●${RESET} ${IFACE} ${GREEN}up${RESET}\n"
+    else
+      printf "${RED}○${RESET} ${IFACE} ${DIM}down${RESET}\n"
+    fi
+    show_ip
+    if is_active; then
+      echo
+      sudo wg show "$IFACE" 2>/dev/null | grep -E "latest handshake|transfer|endpoint" | sed 's/^/  /'
+    fi
+    ;;
+  *)
+    echo "usage: vpn {on|off|toggle|status}" >&2
+    exit 2
+    ;;
+esac

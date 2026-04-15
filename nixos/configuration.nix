@@ -18,6 +18,15 @@
   networking.hostName = "tc-nest";
   networking.networkmanager.enable = true;  # T1-7 fix — no network without this
   services.tailscale.enable = true;  # Mesh VPN, joins Dad's existing tailnet
+
+  # ── Proton VPN (WireGuard) ────────────────────────────────────────────────
+  # Declarative tunnel — brings wg-quick-proton-us-nj.service up at boot.
+  # Config file lives outside the repo (contains private keys); managed
+  # with `sudo mv` once per server.
+  networking.wg-quick.interfaces.proton-us-nj = {
+    configFile = "/etc/wireguard/proton-us-nj.conf";
+    autostart = true;
+  };
   # time.timeZone conflicts with automatic-timezoned in services.nix (T1-2 fix)
   # timezone is managed dynamically — set manually if automatic-timezoned ever gets removed
   i18n.defaultLocale = "en_US.UTF-8";
