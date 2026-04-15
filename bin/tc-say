@@ -1,0 +1,79 @@
+#!/run/current-system/sw/bin/bash
+# tc-say — TTS for TC. Local piper, no cloud dependency.
+#
+# Usage:
+#   tc-say "text to speak"
+#   echo "piped" | tc-say
+#   tc-say --voice ryan "hello"          # voice-name sans en_US- / en_GB- prefix
+#   tc-say --voice en_GB-alan-medium "hi" # fully-qualified name
+#   tc-say --list                         # show installed voices
+#   tc-say --silent "..."                 # generate wav only, don't play
+
+set -uo pipefail
+
+VOICES_DIR="${HOME}/.local/share/piper/voices"
+DEFAULT_VOICE_FILE="${HOME}/.local/share/piper/default-voice"
+WAV=/tmp/tc-say.wav
+
+# Resolve default voice — from file, or fall back to ryan-medium
+if [ -f "$DEFAULT_VOICE_FILE" ]; then
+  default_voice=$(cat "$DEFAULT_VOICE_FILE")
+else
+  default_voice="en_US-ryan-medium"
+fi
+
+voice="$default_voice"
+silent=0
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --voice) voice="$2"; shift 2 ;;
+    --list)
+      echo "installed voices:"
+      for f in "$VOICES_DIR"/*.onnx; do
+        base=$(basename "$f" .onnx)
+        marker=""
+        [ "$base" = "$default_voice" ] && marker="  (default)"
+        echo "  $base$marker"
+      done
+      exit 0 ;;
+    --silent) silent=1; shift ;;
+    -h|--help) sed -n '3,12p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *) break ;;
+  esac
+done
+
+# Resolve short voice name (e.g. "ryan" → "en_US-ryan-medium")
+model=""
+for candidate in \
+  "$VOICES_DIR/$voice.onnx" \
+  "$VOICES_DIR/en_US-$voice-medium.onnx" \
+  "$VOICES_DIR/en_GB-$voice-medium.onnx" \
+; do
+  if [ -f "$candidate" ]; then
+    model="$candidate"; break
+  fi
+done
+if [ -z "$model" ]; then
+  echo "tc-say: no voice matching '$voice' in $VOICES_DIR" >&2
+  echo "  try: tc-say --list" >&2
+  exit 1
+fi
+
+# Get text from args or stdin
+if [ $# -gt 0 ]; then
+  text="$*"
+else
+  text=$(cat)
+fi
+
+if [ -z "${text// /}" ]; then
+  echo "tc-say: empty input" >&2
+  exit 1
+fi
+
+# Generate + play
+echo "$text" | piper -m "$model" -f "$WAV" 2>/dev/null
+if [ "$silent" = "0" ]; then
+  pw-cat --playback "$WAV" 2>/dev/null
+fi

@@ -1,0 +1,66 @@
+#!/run/current-system/sw/bin/bash
+# battery — report battery state for the nest's current host.
+#
+# Usage: battery          pretty status with warnings
+#        battery --pct    raw percent (for scripts)
+#        battery --json   structured output
+#
+# Under the hood: /sys/class/power_supply/BAT0 (or BAT1 on some MBPs).
+
+set -uo pipefail
+
+DIM="\033[2m"; BOLD="\033[1m"; RESET="\033[0m"
+GREEN="\033[32m"; YELLOW="\033[33m"; RED="\033[31m"; EMBER="\033[38;2;255;121;51m"
+
+# Find battery (MBPs vary between BAT0 and BAT1)
+BAT=""
+for candidate in /sys/class/power_supply/BAT0 /sys/class/power_supply/BAT1 /sys/class/power_supply/macsmc-battery; do
+  [ -d "$candidate" ] && BAT="$candidate" && break
+done
+
+if [ -z "$BAT" ]; then
+  echo "battery: no battery found — on a desktop?" >&2
+  exit 1
+fi
+
+pct=$(cat "$BAT/capacity" 2>/dev/null || echo "?")
+status=$(cat "$BAT/status" 2>/dev/null || echo "?")
+energy_full=$(cat "$BAT/energy_full" 2>/dev/null || echo "0")
+energy_now=$(cat "$BAT/energy_now" 2>/dev/null || echo "0")
+power_now=$(cat "$BAT/power_now" 2>/dev/null || echo "0")
+
+case "${1:-}" in
+  --pct) echo "$pct"; exit 0 ;;
+  --json)
+    cat <<EOF
+{"percent": $pct, "status": "$status", "energy_full_uWh": $energy_full, "energy_now_uWh": $energy_now, "power_now_uW": $power_now}
+EOF
+    exit 0 ;;
+esac
+
+# Pick color for pct
+if [ "$pct" -ge 50 ]; then color="$GREEN"
+elif [ "$pct" -ge 20 ]; then color="$YELLOW"
+else color="$RED"; fi
+
+# Status icon
+case "$status" in
+  Charging)    icon="⚡"; scolor="$EMBER" ;;
+  Discharging) icon="🔋"; scolor="$DIM" ;;
+  Full)        icon="✓"; scolor="$GREEN" ;;
+  *)           icon="?"; scolor="$DIM" ;;
+esac
+
+# Time remaining (if discharging and we have power_now)
+time_left=""
+if [ "$status" = "Discharging" ] && [ "$power_now" -gt 0 ]; then
+  hours=$(awk -v e="$energy_now" -v p="$power_now" 'BEGIN{printf "%.1f", e/p}')
+  time_left=" ${DIM}(~${hours}h left)${RESET}"
+fi
+
+printf "  ${scolor}${icon}${RESET}  ${BOLD}${color}%3d%%${RESET} ${DIM}%s${RESET}${time_left}\n" "$pct" "$status"
+
+# Warn at low levels
+if [ "$pct" -lt 20 ] && [ "$status" = "Discharging" ]; then
+  printf "  ${RED}⚠  low battery — plug in soon${RESET}\n" >&2
+fi

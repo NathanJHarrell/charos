@@ -26,6 +26,8 @@
       dlib              # HOG/CNN face detectors + 128-d embeddings
       face-recognition  # High-level wrapper on dlib
       face-recognition-models
+      sounddevice       # Mic capture for tc-listen / tc-phone
+      faster-whisper    # High-accuracy offline STT
     ]))
 
     # ── The Workshop ─────────────────────────────────────────────────────
@@ -73,6 +75,8 @@
     mpv                  # Video player
     ffmpeg               # Video processing
     imv                  # Wayland-native image viewer — imv /path/to.png
+    piper-tts            # Local neural TTS for tc-say / tc-phone
+    whisper-cpp          # Fast whisper for light STT tasks
 
     # ── Utilities ────────────────────────────────────────────────────────
     unzip

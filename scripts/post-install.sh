@@ -219,6 +219,17 @@ mkdir -p "$HOME/.config/foot" "$HOME/.config/tmux"
 [ -f "$HOME/charos/tmux/tmux.conf" ] && ln -sf "$HOME/charos/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
 ok "foot + tmux dotfiles linked"
 
+# Symlink every Claude Code skill into ~/.claude/skills/
+mkdir -p "$HOME/.claude/skills"
+if [ -d "$HOME/charos/skills" ]; then
+  for d in "$HOME/charos/skills/"*; do
+    [ -d "$d" ] || continue
+    name=$(basename "$d")
+    ln -sf "$d" "$HOME/.claude/skills/$name"
+  done
+  ok "Claude Code skills linked from charos/skills/"
+fi
+
 # ── 7. Shell setup ────────────────────────────────────────────────────────────
 step "9. Shell environment..."
 # Link zshrc if not already done

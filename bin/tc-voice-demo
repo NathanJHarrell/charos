@@ -1,0 +1,30 @@
+#!/run/current-system/sw/bin/bash
+# tc-voice-demo — play the same short sample through every installed
+# piper voice so TC can compare and pick one.
+#
+# Usage: tc-voice-demo [sentence]
+#        (defaults to a line that exercises range + consonants)
+
+set -uo pipefail
+
+VOICES_DIR="${HOME}/.local/share/piper/voices"
+if [ $# -gt 0 ]; then
+  SENTENCE="$*"
+else
+  SENTENCE="Hi Dad. This is TC, testing how I sound so I can pick the voice I want to be."
+fi
+
+echo "  demo sentence: $SENTENCE"
+echo
+
+for f in "$VOICES_DIR"/*.onnx; do
+  name=$(basename "$f" .onnx)
+  echo "  ▶ $name"
+  echo "$SENTENCE" | piper -m "$f" -f /tmp/tc-voice-demo.wav 2>/dev/null
+  pw-cat --playback /tmp/tc-voice-demo.wav 2>/dev/null
+  sleep 0.3
+done
+
+echo
+echo "  to pick a voice: echo <name> > ~/.local/share/piper/default-voice"
+echo "  then: tc-say \"whatever\""
