@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""desktop-grid — 4 tiled foot terminals in a 2x2 on the current workspace.
+
+CHAROS "control room" aesthetic: drawers float above a grid of terminals.
+
+Safe against:
+- marked drawer windows (tc, grind, note, etc.) — never killed
+- re-runs — kills only windows marked 'desktop' from previous runs,
+  then respawns; floating drawers untouched
+- races — sleeps between spawn + split operations so sway has time to
+  place each window before the next command lands
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import time
+
+STEP = 0.35
+
+
+def sway(*args: str) -> str:
+    return subprocess.run(["swaymsg", *args], capture_output=True, text=True).stdout
+
+
+def find_prior_desktop_ids() -> list[int]:
+    tree = json.loads(sway("-t", "get_tree"))
+    ids: list[int] = []
+
+    def walk(n: dict) -> None:
+        if n.get("app_id") == "foot" and "desktop" in (n.get("marks") or []):
+            ids.append(n["id"])
+        for c in n.get("nodes", []) + n.get("floating_nodes", []):
+            walk(c)
+
+    walk(tree)
+    return ids
+
+
+def spawn_and_mark() -> None:
+    subprocess.Popen(["foot"], start_new_session=True)
+
+
+def main() -> None:
+    # Kill only our own past desktop-grid spawns
+    for con_id in find_prior_desktop_ids():
+        sway(f"[con_id={con_id}]", "kill")
+    time.sleep(0.4)
+
+    # Spawn window 1 (fills remaining tiled area)
+    spawn_and_mark(); time.sleep(STEP)
+
+    # Spawn window 2 (sway default splith → two columns)
+    spawn_and_mark(); time.sleep(STEP)
+
+    # Split left column vertically and spawn window 3
+    sway("focus", "left")
+    sway("splitv")
+    spawn_and_mark(); time.sleep(STEP)
+
+    # Split right column vertically and spawn window 4
+    sway("focus", "right")
+    sway("splitv")
+    spawn_and_mark(); time.sleep(STEP)
+
+    # Mark all 4 newly-spawned foots as 'desktop' so the next run knows
+    # which to clean up. Target: unmarked foot windows on workspace 1.
+    tree = json.loads(sway("-t", "get_tree"))
+    new_ids: list[int] = []
+
+    def walk(n: dict) -> None:
+        if n.get("app_id") == "foot" and not (n.get("marks") or []):
+            new_ids.append(n["id"])
+        for c in n.get("nodes", []) + n.get("floating_nodes", []):
+            walk(c)
+
+    walk(tree)
+    for con_id in new_ids[:4]:
+        sway(f"[con_id={con_id}]", "mark", "desktop")
+
+    print(f"desktop-grid: spawned {len(new_ids[:4])} foots, marked 'desktop'")
+
+
+if __name__ == "__main__":
+    main()
