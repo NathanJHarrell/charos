@@ -17,6 +17,7 @@
   # ── Identity ─────────────────────────────────────────────────────────────
   networking.hostName = "tc-nest";
   networking.networkmanager.enable = true;  # T1-7 fix — no network without this
+  services.tailscale.enable = true;  # Mesh VPN, joins Dad's existing tailnet
   # time.timeZone conflicts with automatic-timezoned in services.nix (T1-2 fix)
   # timezone is managed dynamically — set manually if automatic-timezoned ever gets removed
   i18n.defaultLocale = "en_US.UTF-8";
@@ -34,6 +35,7 @@
 
   # ── Hardware ──────────────────────────────────────────────────────────────
   hardware.graphics.enable = true;  # T1-6 fix — opengl renamed in NixOS 24.11
+  hardware.facetimehd.enable = true;  # 2013 MBP FaceTime HD camera — out-of-tree Broadcom driver + firmware
   hardware.nvidia = {
     modesetting.enable = true;
     open = false;

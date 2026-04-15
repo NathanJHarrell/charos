@@ -41,6 +41,11 @@
     curl
     wget
     openssh
+    wireguard-tools      # Proton VPN (and any other WireGuard tunnel) via wg-quick
+    tailscale            # Mesh VPN — reach tower's Vaultwarden, future NAS, etc.
+    usbutils             # lsusb — hardware debugging
+    pciutils             # lspci — hardware debugging
+    v4l-utils            # v4l2-ctl — camera debugging
 
     # ── Vision & AI ──────────────────────────────────────────────────────
     # python312Packages.opencv   # Face detection — package name unstable across NixOS versions, skip for now
