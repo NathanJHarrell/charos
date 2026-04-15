@@ -1,0 +1,5 @@
+#!/run/current-system/sw/bin/bash
+# grind — launch GRIND terminal with its nix-shell env loaded.
+# Wraps the cargo build so it can be called from anywhere (sway keybind, etc.).
+cd "$HOME/grind" || exit 1
+exec nix-shell --run "./target/release/grind"

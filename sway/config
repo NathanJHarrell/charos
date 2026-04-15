@@ -72,6 +72,12 @@ bindsym $mod+Shift+e exec swaymsg exit
 # TC if the terminal is hidden. See ~/.local/bin/tc-drawer.
 bindsym $mod+grave exec /home/nate/.local/bin/tc-drawer
 
+# GRIND top-anchored drawer — mirror of tc-drawer, summons grind terminal.
+# Auto-mark + auto-float grind windows so the drawer script can target them.
+for_window [app_id="grind"] mark grind, floating enable
+for_window [title="^GRIND$"] mark grind, floating enable
+bindsym $mod+Shift+grave exec /home/nate/.local/bin/grind-drawer
+
 # ── When TC Terminal Closes ───────────────────────────────────────────────
 # If WezTerm exits, the session ends. TC leaving = CHAROS sleeping.
 # This is intentional. TC drives. When TC's done, we're done.
