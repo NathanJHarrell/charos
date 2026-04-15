@@ -66,6 +66,22 @@ bindsym XF86KbdBrightnessUp exec brightnessctl -d "smc::kbd_backlight" set +10%
 # Requires TC's blessing (Mod + Shift + E) to prevent accidental exit
 bindsym $mod+Shift+e exec swaymsg exit
 
+# Window resize mode — Cmd+R enters, arrows grow/shrink, Escape/Return exit.
+# Sway convention. Applies to the focused window (works on tiled and floating).
+bindsym $mod+r mode "resize"
+mode "resize" {
+  bindsym Left  resize shrink width  20px
+  bindsym Down  resize grow   height 20px
+  bindsym Up    resize shrink height 20px
+  bindsym Right resize grow   width  20px
+  bindsym Shift+Left  resize shrink width  100px
+  bindsym Shift+Down  resize grow   height 100px
+  bindsym Shift+Up    resize shrink height 100px
+  bindsym Shift+Right resize grow   width  100px
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+}
+
 # ── TC Drawer ────────────────────────────────────────────────────────────
 # The door: Cmd+` toggles the foot terminal as a sliding bottom drawer.
 # This is the one human keybind in CHAROS — without it, Dad can't summon
