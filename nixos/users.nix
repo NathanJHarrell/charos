@@ -31,6 +31,13 @@
 
   # Passwordless sudo for TC operations
   # This is our machine. We trust ourselves.
+  #
+  # wheelNeedsPassword=false grants it to ANY wheel-group user — covers
+  # nate on the interim MacBook (where the installer made the user, so
+  # the declarative `users.users.nathan` block above is a no-op) AND
+  # nathan on the cube rig when we migrate.
+  security.sudo.wheelNeedsPassword = false;
+
   security.sudo.extraRules = [{
     users = [ "nathan" ];
     commands = [{
