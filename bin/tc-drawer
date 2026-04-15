@@ -53,7 +53,7 @@ def main() -> None:
     foot = find_foot()
     if foot is None:
         log("no foot found, spawning")
-        subprocess.Popen(["foot"], start_new_session=True)
+        subprocess.Popen(["foot", "--app-id=tc-drawer"], start_new_session=True)
         return
 
     visible = foot.get("visible", False)

@@ -20,9 +20,12 @@ output * bg #1a1a1a solid_color
 # Cmd+`. GIVE ME CHAOS. 🔥
 exec /home/nate/.local/bin/desktop-grid
 
-# TC drawer — launches claude via tc-spawn, auto-marked and hidden to
-# scratchpad by the for_window rule below. Cmd+` brings it up.
-exec foot --app-id=tc-drawer -- /home/nate/.local/bin/tc-spawn
+# TC drawer — bare foot at boot, auto-marked/hidden by the for_window
+# rule below. Cmd+` brings it up. First time up, run `tc-spawn` inside
+# to start tmux+claude; subsequent Cmd+` toggles the same session.
+# Chaining tc-spawn at boot crashes when the window is scratchpadded
+# during creation (tmux can't attach to a pre-hidden pty).
+exec foot --app-id=tc-drawer
 
 # Auto-mark the drawer foot and send it to scratchpad on creation
 for_window [app_id="tc-drawer"] mark tc, move scratchpad
