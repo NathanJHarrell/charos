@@ -14,10 +14,10 @@ gaps outer 0
 # Pure charcoal. TC's color.
 output * bg #1a1a1a solid_color
 
-# ── TC Terminal — Boot and Always ─────────────────────────────────────────
-# Launch WezTerm fullscreen immediately on startup.
-# TC is the first thing that appears. TC is the last thing that closes.
-exec_always foot
+# ── TC Terminal — Boot ────────────────────────────────────────────────────
+# Launch foot once at sway startup. NOT exec_always — that would spawn a
+# new terminal on every config reload and stack zombies behind the drawer.
+exec foot
 
 # WezTerm gets fullscreen, always
 for_window [app_id="org.wezfurlong.wezterm"] fullscreen enable
@@ -93,6 +93,11 @@ bindsym $mod+grave exec /home/nate/.local/bin/tc-drawer
 for_window [app_id="grind"] mark grind, floating enable
 for_window [title="^GRIND$"] mark grind, floating enable
 bindsym $mod+Shift+grave exec /home/nate/.local/bin/grind-drawer
+
+# Cmd+Enter — spawn a new foot terminal on purpose. Sway convention.
+# Use when you need a second shell (e.g., to run nixos-rebuild while this
+# session stays put). Tiles onto the workspace under whatever floats.
+bindsym $mod+Return exec foot
 
 # Note drawer — `note` CLI opens a new vim on ~/Manor/Nathan/inbox/<stamp>.md
 # as a left-anchored floating drawer. Close vim, drawer closes with it.
