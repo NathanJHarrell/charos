@@ -25,7 +25,10 @@
       Restart = "always";
       RestartSec = "5s";
       User = "nate";
-      Environment = "HOME=/home/nate";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+      ];
     };
   };
 
@@ -48,6 +51,7 @@
       Environment = [
         "NODE_ENV=development"
         "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin"
       ];
     };
   };
@@ -63,7 +67,10 @@
       ExecStart = "/home/nate/charos/scripts/forge-monitor.sh";
       User = "nate";
       Type = "oneshot";
-      Environment = "HOME=/home/nate";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+      ];
     };
   };
   systemd.timers.forge-monitor = {
@@ -92,7 +99,10 @@
       Restart = "always";
       RestartSec = "5s";
       User = "nate";
-      Environment = "HOME=/home/nate";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+      ];
       RuntimeDirectory = "charos";
       LogsDirectory = "charos";
     };
