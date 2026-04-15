@@ -109,6 +109,37 @@
     preStart = "mkdir -p /var/log/charos /tmp/charos-inbox /tmp/charos-inbox/processed";
   };
 
+  # ── Inbox Janitor ─────────────────────────────────────────────────────────
+  # Fires a headless claude instance to sort ~/Manor/Nathan/inbox/ on a
+  # schedule. Dad drops notes via `note` all day; TC cleans up at fixed
+  # breakpoints without interrupting any live build.
+  systemd.services.inbox-janitor = {
+    description = "Manor inbox janitor — headless claude cleanup";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos/bin/inbox-janitor.sh";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/charos/bin/inbox-janitor.sh";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+      ];
+      # Don't let a stuck run block the timer — matches the 5min claude timeout
+      TimeoutStartSec = "6min";
+    };
+  };
+  systemd.timers.inbox-janitor = {
+    description = "Run inbox-janitor 3x/day (09:00, 15:00, 21:00)";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = [ "*-*-* 09:00:00" "*-*-* 15:00:00" "*-*-* 21:00:00" ];
+      Persistent = true;  # catch up if nest was asleep at run time
+      Unit = "inbox-janitor.service";
+    };
+  };
+
   # ── OpenRGB ───────────────────────────────────────────────────────────────
   # LED control server. Corsair strips + keyboard. Never iCUE.
   # "intel" on the MacBook interim, flip to "amd" on cube migration.
