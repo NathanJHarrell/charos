@@ -78,6 +78,10 @@ for_window [app_id="grind"] mark grind, floating enable
 for_window [title="^GRIND$"] mark grind, floating enable
 bindsym $mod+Shift+grave exec /home/nate/.local/bin/grind-drawer
 
+# Note drawer — `note` CLI opens a new vim on ~/Manor/Nathan/inbox/<stamp>.md
+# as a left-anchored floating drawer. Close vim, drawer closes with it.
+for_window [app_id="note"] floating enable, resize set 384 640, move position 0 80
+
 # ── When TC Terminal Closes ───────────────────────────────────────────────
 # If WezTerm exits, the session ends. TC leaving = CHAROS sleeping.
 # This is intentional. TC drives. When TC's done, we're done.

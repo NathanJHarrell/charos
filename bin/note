@@ -1,0 +1,36 @@
+#!/run/current-system/sw/bin/bash
+# note — open a new note in a left-anchored drawer.
+#
+# Usage:
+#   note              → new file named by timestamp in ~/Manor/Nathan/inbox
+#   note <slug>       → new file named <slug>.md
+#   note <path>.md    → open that specific path
+#
+# The window gets app_id=note so Sway's for_window rule pins it as
+# the left drawer (384x640 at 0,80). Close vim, drawer closes with it.
+
+set -euo pipefail
+
+INBOX="${HOME}/Manor/Nathan/inbox"
+mkdir -p "$INBOX"
+
+target="${1:-}"
+
+if [ -z "$target" ]; then
+  # No arg — timestamp filename
+  stamp=$(date +%Y%m%d-%H%M%S)
+  filepath="$INBOX/$stamp.md"
+elif [[ "$target" == *.md ]] || [[ "$target" == */* ]]; then
+  # Looks like a path — use it directly
+  filepath="$target"
+else
+  # Bare slug — goes into inbox as .md
+  filepath="$INBOX/${target}.md"
+fi
+
+# Seed the file with a header if it's new
+if [ ! -f "$filepath" ]; then
+  printf '# %s\n\n' "$(basename "$filepath" .md)" > "$filepath"
+fi
+
+exec foot --app-id=note -- nvim "$filepath"

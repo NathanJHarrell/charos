@@ -1,25 +1,31 @@
 #!/usr/bin/env python3
 """grind-drawer — toggle GRIND as a top-anchored sliding drawer.
 
-Mirror of tc-drawer but anchored at the top of the screen. Logs to
-/tmp/grind-drawer.log for keybind debugging.
+Mirror of tc-drawer, anchored at the top of the screen.
 
-If GRIND isn't running, spawns it first. Sway rule auto-marks + floats
-any grind window (see ~/charos/sway/config).
+Robustness:
+- Prefers windows with the `grind` mark over title-based matches; if an
+  unmarked GRIND window is found, marks it before operating.
+- Uses a /tmp/grind-drawer.lock file to debounce spawn attempts so rapid
+  keypresses during cold-launch don't fork four grinds.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
 WIDTH = 768
 HEIGHT = 320
 X = 256
-Y = 0  # top-anchored (tc-drawer uses Y=480 for bottom)
+Y = 0  # top-anchored
 LOG = Path("/tmp/grind-drawer.log")
+SPAWN_LOCK = Path("/tmp/grind-drawer.lock")
+SPAWN_DEBOUNCE_SEC = 10  # ignore further spawns within N seconds of the last
 
 
 def log(msg: str) -> None:
@@ -32,36 +38,54 @@ def sway(*args: str) -> str:
 
 
 def find_grind() -> dict | None:
+    """Prefer marked window; fall back to title match (and mark it on the fly)."""
     tree = json.loads(sway("-t", "get_tree"))
+    marked = None
+    by_title = None
 
     def walk(node):
-        marks = node.get("marks") or []
-        if "grind" in marks:
-            return node
-        # fallback: match by app_id or title while the mark rule isn't firing yet
-        if node.get("app_id") == "grind" or (node.get("name") or "") == "GRIND":
-            return node
+        nonlocal marked, by_title
+        if "grind" in (node.get("marks") or []):
+            marked = marked or node
+        elif (node.get("name") or "") == "GRIND" or node.get("app_id") == "grind":
+            by_title = by_title or node
         for child in node.get("nodes", []) + node.get("floating_nodes", []):
-            r = walk(child)
-            if r is not None:
-                return r
-        return None
+            walk(child)
 
-    return walk(tree)
+    walk(tree)
+    if marked is not None:
+        return marked
+    if by_title is not None:
+        sway(f'[con_id={by_title["id"]}]', "mark", "grind")
+        log(f"marked orphan grind id={by_title['id']} on the fly")
+        return by_title
+    return None
+
+
+def recently_spawned() -> bool:
+    if not SPAWN_LOCK.exists():
+        return False
+    age = time.time() - SPAWN_LOCK.stat().st_mtime
+    return age < SPAWN_DEBOUNCE_SEC
 
 
 def main() -> None:
     log("invoked")
     g = find_grind()
+
     if g is None:
+        if recently_spawned():
+            log(f"no grind yet but spawn in progress (<{SPAWN_DEBOUNCE_SEC}s) — skipping")
+            return
         log("no grind found, spawning")
+        SPAWN_LOCK.touch()
         subprocess.Popen(["/home/nate/charos/bin/grind"], start_new_session=True)
         return
 
     visible = g.get("visible", False)
     log(f"grind id={g['id']} visible={visible}")
-
     sel = f'[con_id={g["id"]}]'
+
     if visible:
         sway(sel, "move", "scratchpad")
         log("hid to scratchpad")

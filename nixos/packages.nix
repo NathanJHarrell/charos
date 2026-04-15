@@ -23,6 +23,7 @@
 
     # ── Terminal & Shell ─────────────────────────────────────────────────
     wezterm              # TC's terminal
+    neovim               # $EDITOR for every user/script in CHAROS
     zsh
     starship             # Prompt — ember themed
     zsh-autosuggestions
