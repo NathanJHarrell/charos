@@ -3,8 +3,8 @@
 # Clean, fast, ours. Built by TC for Nathan.
 
 # ── Environment ───────────────────────────────────────────────────────────────
-export EDITOR=nvim
-export VISUAL=nvim
+export EDITOR=vim
+export VISUAL=vim
 export CHAROS_HOME="$HOME/.charos"
 export PATH="$CHAROS_HOME/scripts:$PATH"
 

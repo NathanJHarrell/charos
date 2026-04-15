@@ -33,4 +33,4 @@ if [ ! -f "$filepath" ]; then
   printf '# %s\n\n' "$(basename "$filepath" .md)" > "$filepath"
 fi
 
-exec foot --app-id=note -- nvim "$filepath"
+exec foot --app-id=note -- vim "$filepath"
