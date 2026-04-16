@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# clipd — network clipboard daemon
+# Usage: clipd [nest|jarvis|status|stop]
+
+set -euo pipefail
+
+CLIPD_DIR="$HOME/charos/clipd"
+PID_FILE="/tmp/clipd.pid"
+
+case "${1:-nest}" in
+  nest)
+    echo "Starting clipd nest daemon (port 4201)..."
+    exec python3 "$CLIPD_DIR/nest_daemon.py"
+    ;;
+  jarvis)
+    echo "Starting clipd jarvis daemon (connecting to ${CLIPD_SERVER:-nest}:${CLIPD_PORT:-4201})..."
+    exec python3 "$CLIPD_DIR/jarvis_daemon.py"
+    ;;
+  status)
+    if pgrep -f "clipd/.*_daemon.py" > /dev/null 2>&1; then
+      pgrep -af "clipd/.*_daemon.py"
+    else
+      echo "clipd: not running"
+    fi
+    ;;
+  stop)
+    pkill -f "clipd/.*_daemon.py" 2>/dev/null && echo "clipd stopped" || echo "clipd: not running"
+    ;;
+  *)
+    echo "Usage: clipd [nest|jarvis|status|stop]"
+    exit 1
+    ;;
+esac
