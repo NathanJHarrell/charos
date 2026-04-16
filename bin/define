@@ -1,0 +1,47 @@
+#!/run/current-system/sw/bin/bash
+# define — look up a word via dictionaryapi.dev
+# Usage: define <word>
+set -euo pipefail
+
+BOLD='\033[1m'  DIM='\033[2m'  CYAN='\033[36m'  YELLOW='\033[33m'
+GREEN='\033[32m'  RED='\033[31m'  RESET='\033[0m'
+
+if [[ $# -lt 1 ]]; then
+  echo -e "${RED}Usage:${RESET} define <word>"
+  exit 1
+fi
+
+WORD="$1"
+URL="https://api.dictionaryapi.dev/api/v2/entries/en/${WORD}"
+
+RESP=$(curl -sf "$URL" 2>/dev/null) || {
+  echo -e "${RED}Word not found:${RESET} ${BOLD}${WORD}${RESET}"
+  exit 1
+}
+
+# Word + phonetic
+TITLE=$(echo "$RESP" | jq -r '.[0].word')
+PHONETIC=$(echo "$RESP" | jq -r '.[0].phonetic // empty')
+echo ""
+echo -e "  ${BOLD}${CYAN}${TITLE}${RESET}  ${DIM}${PHONETIC}${RESET}"
+echo ""
+
+# Meanings
+echo "$RESP" | jq -r '
+  .[0].meanings[] |
+  "  \(.partOfSpeech)\n" +
+  ( .definitions | to_entries[] |
+    "    \(.key + 1). \(.value.definition)" +
+    (if .value.example then "\n       \"\(.value.example)\"" else "" end)
+  )
+' | while IFS= read -r line; do
+  # Color part-of-speech headers
+  if [[ "$line" =~ ^\ \ [a-z] && ! "$line" =~ ^\ \ \ \  ]]; then
+    echo -e "  ${YELLOW}${BOLD}${line## }${RESET}"
+  elif [[ "$line" =~ ^\ \ \ \ \ \ \ \" ]]; then
+    echo -e "${DIM}${line}${RESET}"
+  else
+    echo -e "${GREEN}${line}${RESET}"
+  fi
+done
+echo ""

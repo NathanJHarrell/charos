@@ -208,6 +208,11 @@
     nameserver 1.1.1.1
   '';
 
+  # ── Docker ────────────────────────────────────────────────────────────────
+  # Container runtime. User `nate` added to the `docker` group in users.nix
+  # for non-sudo access (requires new session / `newgrp docker` to take effect).
+  virtualisation.docker.enable = true;
+
   # ── OpenRGB ───────────────────────────────────────────────────────────────
   # LED control server. Corsair strips + keyboard. Never iCUE.
   # "intel" on the MacBook interim, flip to "amd" on cube migration.
