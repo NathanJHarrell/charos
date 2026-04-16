@@ -8,6 +8,7 @@ Dad's data porn on demand.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from datetime import datetime
@@ -82,9 +83,12 @@ def main() -> None:
                 "foot",
                 "--app-id=htop-drawer",
                 "--config=/home/nate/.config/foot/htop-drawer.ini",
-                "--title=HTOP",
-                "-e", "htop",
+                "--title=FURNACE",
+                "-e",
+                "/home/nate/charos/furnace/.venv/bin/python3",
+                "-m", "furnace",
             ],
+            env={**os.environ, "PYTHONPATH": "/home/nate/charos"},
             start_new_session=True,
         )
         return

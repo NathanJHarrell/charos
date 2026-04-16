@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""tc-transcript — extract human-readable transcripts from Claude Code sessions.
+
+Two modes:
+  clean  — human + assistant text only (the story)
+  full   — everything including tool calls (the engineering record)
+
+Usage:
+  tc-transcript                          # export current session (clean)
+  tc-transcript --full                   # export current session (full)
+  tc-transcript --all                    # export all local sessions (clean)
+  tc-transcript --all --full             # export all local sessions (full)
+  tc-transcript --jarvis                 # export all Jarvis sessions too
+  tc-transcript --session <id>           # export a specific session
+  tc-transcript --list                   # list all available sessions
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+CLAUDE_DIR = Path.home() / ".claude"
+TRANSCRIPT_DIR = Path.home() / "Manor" / "transcripts"
+JARVIS_HOST = "tc-nest@jarvis-wsl"
+JARVIS_CLAUDE_DIR = "/home/nate/.claude"
+
+
+def find_local_sessions() -> list[dict]:
+    """Find all JSONL session files locally."""
+    sessions = []
+    projects_dir = CLAUDE_DIR / "projects"
+    if not projects_dir.exists():
+        return sessions
+
+    for jsonl in projects_dir.rglob("*.jsonl"):
+        if "subagents" in str(jsonl):
+            continue
+        session_id = jsonl.stem
+        project = jsonl.parent.name
+        # Get file modification time as proxy for session date
+        mtime = datetime.fromtimestamp(jsonl.stat().st_mtime)
+        size = jsonl.stat().st_size
+        sessions.append({
+            "id": session_id,
+            "project": project,
+            "path": str(jsonl),
+            "date": mtime.strftime("%Y-%m-%d %H:%M"),
+            "size": size,
+            "machine": "nest",
+        })
+    return sorted(sessions, key=lambda s: s["date"], reverse=True)
+
+
+def find_jarvis_sessions() -> list[dict]:
+    """Find all JSONL session files on Jarvis via SSH."""
+    sessions = []
+    try:
+        result = subprocess.run(
+            ["ssh", JARVIS_HOST, f"sudo find {JARVIS_CLAUDE_DIR}/projects -name '*.jsonl' -not -path '*/subagents/*' -exec stat --format='%n|%Y|%s' {{}} \\;"],
+            capture_output=True, text=True, timeout=15
+        )
+        for line in result.stdout.strip().splitlines():
+            parts = line.split("|")
+            if len(parts) != 3:
+                continue
+            path, mtime_epoch, size = parts
+            session_id = Path(path).stem
+            project = Path(path).parent.name
+            mtime = datetime.fromtimestamp(int(mtime_epoch))
+            sessions.append({
+                "id": session_id,
+                "project": project,
+                "path": path,
+                "date": mtime.strftime("%Y-%m-%d %H:%M"),
+                "size": int(size),
+                "machine": "jarvis",
+            })
+    except Exception as e:
+        print(f"Warning: couldn't reach Jarvis: {e}", file=sys.stderr)
+    return sorted(sessions, key=lambda s: s["date"], reverse=True)
+
+
+def read_jsonl(path: str, machine: str = "nest") -> list[dict]:
+    """Read a JSONL file, locally or from Jarvis."""
+    lines = []
+    if machine == "jarvis":
+        try:
+            result = subprocess.run(
+                ["ssh", JARVIS_HOST, f"sudo cat {path}"],
+                capture_output=True, text=True, timeout=30
+            )
+            raw = result.stdout
+        except Exception as e:
+            print(f"Error reading from Jarvis: {e}", file=sys.stderr)
+            return []
+    else:
+        raw = Path(path).read_text()
+
+    for line in raw.strip().splitlines():
+        try:
+            lines.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return lines
+
+
+def extract_text_content(message: dict, include_tools: bool = False) -> str:
+    """Extract text from a message's content field."""
+    content = message.get("content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                if block.get("type") == "text":
+                    parts.append(block.get("text", ""))
+                elif include_tools and block.get("type") == "tool_use":
+                    parts.append(f"[Tool: {block.get('name', '?')}]")
+                elif include_tools and block.get("type") == "tool_result":
+                    content_inner = block.get("content", "")
+                    if isinstance(content_inner, str):
+                        parts.append(f"[Tool Result: {content_inner[:200]}]")
+        return "\n".join(p for p in parts if p.strip())
+    return ""
+
+
+def extract_tool_calls(message: dict) -> list[str]:
+    """Extract tool call details from a message."""
+    tools = []
+    content = message.get("content", [])
+    if not isinstance(content, list):
+        return tools
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") == "tool_use":
+            name = block.get("name", "?")
+            inp = block.get("input", {})
+            # Summarize input
+            if name == "Bash":
+                cmd = inp.get("command", "")
+                tools.append(f"```bash\n# Tool: {name}\n{cmd}\n```")
+            elif name in ("Read", "Write", "Edit"):
+                fp = inp.get("file_path", "")
+                tools.append(f"[{name}: {fp}]")
+            elif name == "Grep":
+                pattern = inp.get("pattern", "")
+                tools.append(f"[Grep: {pattern}]")
+            else:
+                tools.append(f"[{name}: {json.dumps(inp)[:150]}]")
+    return tools
+
+
+def render_transcript(entries: list[dict], full: bool = False) -> str:
+    """Render JSONL entries as a markdown transcript."""
+    lines = []
+    session_id = None
+    project = None
+
+    for entry in entries:
+        etype = entry.get("type", "")
+
+        if etype == "permission-mode" and not session_id:
+            session_id = entry.get("sessionId", "unknown")
+
+        if etype == "user":
+            msg = entry.get("message", {})
+            if isinstance(msg, dict):
+                text = extract_text_content(msg, include_tools=False)
+                if text.strip():
+                    lines.append(f"\n---\n\n**Nathan:**\n\n{text.strip()}\n")
+
+        elif etype == "assistant":
+            msg = entry.get("message", {})
+            if isinstance(msg, dict):
+                text = extract_text_content(msg, include_tools=False)
+                if full:
+                    tools = extract_tool_calls(msg)
+                    if tools:
+                        lines.append("\n" + "\n\n".join(tools) + "\n")
+                if text.strip():
+                    lines.append(f"\n**TC:**\n\n{text.strip()}\n")
+
+    return "".join(lines)
+
+
+def get_current_session_id() -> str | None:
+    """Try to find the current session from session files."""
+    sessions_dir = CLAUDE_DIR / "sessions"
+    if not sessions_dir.exists():
+        return None
+    # Find the most recent session file
+    latest = None
+    latest_mtime = 0
+    for f in sessions_dir.glob("*.json"):
+        if f.stat().st_mtime > latest_mtime:
+            latest_mtime = f.stat().st_mtime
+            latest = f
+    if latest:
+        data = json.loads(latest.read_text())
+        return data.get("sessionId")
+    return None
+
+
+def find_session_jsonl(session_id: str) -> tuple[str, str] | None:
+    """Find the JSONL file for a given session ID."""
+    projects_dir = CLAUDE_DIR / "projects"
+    for jsonl in projects_dir.rglob(f"{session_id}.jsonl"):
+        if "subagents" not in str(jsonl):
+            return str(jsonl), "nest"
+    return None
+
+
+def export_session(session: dict, full: bool = False) -> Path | None:
+    """Export a single session to markdown."""
+    entries = read_jsonl(session["path"], session["machine"])
+    if not entries:
+        return None
+
+    transcript = render_transcript(entries, full=full)
+    if not transcript.strip():
+        return None
+
+    # Create output directory
+    mode = "full" if full else "clean"
+    machine = session["machine"]
+    project = session["project"]
+    out_dir = TRANSCRIPT_DIR / mode / machine / project
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Filename: date_sessionid.md
+    date_str = session["date"].replace(" ", "_").replace(":", "")
+    out_path = out_dir / f"{date_str}_{session['id'][:8]}.md"
+
+    header = f"# TC Session Transcript\n\n"
+    header += f"- **Session:** {session['id']}\n"
+    header += f"- **Project:** {project}\n"
+    header += f"- **Machine:** {machine}\n"
+    header += f"- **Date:** {session['date']}\n"
+    header += f"- **Mode:** {mode}\n\n---\n"
+
+    out_path.write_text(header + transcript)
+    return out_path
+
+
+def human_size(n: int) -> str:
+    for unit in ("B", "KB", "MB"):
+        if n < 1024:
+            return f"{n:.0f}{unit}"
+        n /= 1024
+    return f"{n:.1f}GB"
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Extract transcripts from Claude Code sessions")
+    parser.add_argument("--full", action="store_true", help="Include tool calls in transcript")
+    parser.add_argument("--all", action="store_true", help="Export all sessions")
+    parser.add_argument("--jarvis", action="store_true", help="Include Jarvis sessions")
+    parser.add_argument("--session", type=str, help="Export a specific session by ID")
+    parser.add_argument("--list", action="store_true", help="List all available sessions")
+    args = parser.parse_args()
+
+    if args.list:
+        sessions = find_local_sessions()
+        if args.jarvis:
+            sessions += find_jarvis_sessions()
+        if not sessions:
+            print("No sessions found.")
+            return
+        print(f"{'Machine':<8} {'Date':<18} {'Project':<35} {'Size':<8} {'ID'}")
+        print("-" * 100)
+        for s in sessions:
+            print(f"{s['machine']:<8} {s['date']:<18} {s['project']:<35} {human_size(s['size']):<8} {s['id'][:12]}...")
+        print(f"\n{len(sessions)} sessions total")
+        return
+
+    if args.session:
+        result = find_session_jsonl(args.session)
+        if not result:
+            print(f"Session {args.session} not found locally.", file=sys.stderr)
+            return
+        path, machine = result
+        session = {"id": args.session, "project": "unknown", "path": path, "date": "unknown", "size": 0, "machine": machine}
+        out = export_session(session, full=args.full)
+        if out:
+            print(f"Exported: {out}")
+        else:
+            print("No content to export.")
+        return
+
+    if args.all:
+        sessions = find_local_sessions()
+        if args.jarvis:
+            print("Scanning Jarvis...")
+            sessions += find_jarvis_sessions()
+
+        exported = 0
+        for session in sessions:
+            out = export_session(session, full=args.full)
+            if out:
+                print(f"  {out}")
+                exported += 1
+
+        mode = "full" if args.full else "clean"
+        print(f"\nExported {exported}/{len(sessions)} sessions ({mode} mode)")
+        return
+
+    # Default: export current session
+    sid = get_current_session_id()
+    if not sid:
+        print("Couldn't detect current session. Use --list to see available sessions.", file=sys.stderr)
+        return
+    result = find_session_jsonl(sid)
+    if not result:
+        print(f"Session file for {sid} not found.", file=sys.stderr)
+        return
+    path, machine = result
+    session = {
+        "id": sid, "project": Path(path).parent.name,
+        "path": path, "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "size": Path(path).stat().st_size, "machine": machine,
+    }
+    out = export_session(session, full=args.full)
+    if out:
+        print(f"Exported: {out}")
+    else:
+        print("No content to export.")
+
+
+if __name__ == "__main__":
+    main()

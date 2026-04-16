@@ -1,0 +1,134 @@
+/* Furnace — CHAROS System Monitor
+ * Amber/orange theme matching foot htop-drawer.ini (inverted)
+ * Background: #d4a054 (warm amber) | Text: #1a1008 (near-black)
+ */
+
+Screen {
+    background: #d4a054;
+    color: #1a1008;
+}
+
+/* Tab bar */
+TabbedContent {
+    background: #d4a054;
+}
+
+ContentSwitcher {
+    background: #d4a054;
+}
+
+TabPane {
+    background: #d4a054;
+    padding: 0;
+}
+
+Tabs {
+    background: #c89848;
+    dock: top;
+}
+
+Tab {
+    background: #c89848;
+    color: #1a1008;
+    padding: 0 2;
+}
+
+Tab:hover {
+    background: #d4a054;
+}
+
+Tab.-active {
+    background: #d4a054;
+    color: #cc6633;
+    text-style: bold;
+}
+
+/* Stat cards */
+StatCard {
+    background: #c89848;
+    color: #1a1008;
+    border: tall #a07830;
+}
+
+/* Sparkline charts */
+SparklineChart {
+    background: #d4a054;
+    color: #cc6633;
+}
+
+SparklineChart .spark-label {
+    color: #1a1008;
+    text-style: bold;
+}
+
+SparklineChart .spark-value {
+    color: #cc6633;
+    text-style: bold;
+}
+
+SparklineChart .spark-graph {
+    color: #cc6633;
+}
+
+/* Process table */
+DataTable {
+    background: #d4a054;
+    color: #1a1008;
+}
+
+DataTable > .datatable--header {
+    background: #1a1008;
+    color: #d4a054;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #cc6633;
+    color: #d4a054;
+}
+
+DataTable > .datatable--even-row {
+    background: #c89848;
+}
+
+/* Input */
+Input {
+    background: #c89848;
+    color: #1a1008;
+    border: tall #a07830;
+}
+
+Input:focus {
+    border: tall #cc6633;
+}
+
+/* Section headers in CHAROS tab */
+.section-header {
+    color: #cc6633;
+    text-style: bold;
+}
+
+.section-body {
+    color: #1a1008;
+}
+
+/* Charizard watermark */
+#watermark {
+    color: #8a6a30;
+}
+
+/* Header/Footer */
+Header {
+    background: #1a1008;
+    color: #cc6633;
+}
+
+Footer {
+    background: #1a1008;
+    color: #d4a054;
+}
+
+FooterKey {
+    background: #1a1008;
+    color: #cc6633;
+}

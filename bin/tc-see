@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""tc-see — continuous face recognition for the CHAROS nest.
+"""tc-see — continuous face recognition + presence tracking for CHAROS.
 
 Grabs frames from the webcam, detects faces, matches against enrolled
-identities in ~/TC-Vault/face_db/, publishes who's visible to the
-family bus and a log file.
+identities, tracks presence duration, saves stranger screenshots, and
+publishes state to the family bus + a log file + a presence JSON.
 
 Usage:
-  tc-see                    run with defaults
-  tc-see --dry-run          print to stdout only, no log or bus
-  tc-see --interval 3       seconds between captures (default 5)
+  tc-see                         run with defaults
+  tc-see --dry-run               print to stdout only, no log/bus/files
+  tc-see --interval 15           seconds between captures
   tc-see --device /dev/video0
 """
 
@@ -31,11 +31,28 @@ import numpy as np
 FACE_DB = Path.home() / "TC-Vault" / "face_db"
 LOG_DIR = Path("/var/log/charos")
 LOG_FALLBACK = Path("/tmp")
-THRESHOLD = 0.50  # cosine similarity floor
+PRESENCE_FILE = Path("/tmp/tc-see-presence.json")
+STRANGER_DIR = Path("/tmp/tc-see-strangers")
+THRESHOLD = 0.50
 
+# Care-engine thresholds (seconds of continuous presence)
+CARE_GENTLE = 2 * 3600   # 2h → gentle reminder
+CARE_FIRM = 4 * 3600     # 4h → firm nudge
+CARE_ALERT = 6 * 3600    # 6h → alert the family
+
+
+def now_ts() -> float:
+    return time.time()
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+def fmt_duration(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    if h > 0:
+        return f"{h}h{m:02d}m"
+    return f"{m}m"
 
 
 def cosine(a: np.ndarray, b: np.ndarray) -> float:
@@ -43,7 +60,6 @@ def cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def load_roster() -> dict[str, np.ndarray]:
-    """Load enrolled face embeddings, return {name: mean_embedding}."""
     roster = {}
     for f in FACE_DB.glob("*.json"):
         try:
@@ -55,7 +71,6 @@ def load_roster() -> dict[str, np.ndarray]:
 
 
 def identify(encoding: np.ndarray, roster: dict[str, np.ndarray]) -> tuple[str, float]:
-    """Return (name, confidence) for best match, or ("Unknown", 0)."""
     if not roster:
         return "Unknown", 0.0
     scores = {name: cosine(encoding, mean) for name, mean in roster.items()}
@@ -66,7 +81,6 @@ def identify(encoding: np.ndarray, roster: dict[str, np.ndarray]) -> tuple[str, 
 
 
 def bus_send(message: str) -> None:
-    """Best-effort family bus post."""
     try:
         subprocess.run(
             ["bus", "send", "TC", message],
@@ -78,7 +92,7 @@ def bus_send(message: str) -> None:
 
 
 def log_line(log_file: Path | None, line: str, dry_run: bool) -> None:
-    print(f"  {line}")
+    print(f"  {line}", flush=True)
     if not dry_run and log_file:
         try:
             with log_file.open("a") as f:
@@ -87,45 +101,72 @@ def log_line(log_file: Path | None, line: str, dry_run: bool) -> None:
             pass
 
 
+def save_presence(presence: dict, dry_run: bool) -> None:
+    """Write presence state to JSON for other tools (dock, care engine)."""
+    if dry_run:
+        return
+    try:
+        PRESENCE_FILE.write_text(json.dumps(presence, indent=2))
+    except Exception:
+        pass
+
+
+def save_stranger(frame, locations: list, dry_run: bool) -> str | None:
+    """Save a screenshot when an unknown face is detected."""
+    if dry_run:
+        return None
+    try:
+        STRANGER_DIR.mkdir(exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = STRANGER_DIR / f"stranger_{ts}.jpg"
+        # Draw boxes on strangers
+        for top, right, bottom, left in locations:
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+        cv2.imwrite(str(path), frame)
+        return str(path)
+    except Exception:
+        return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="tc-see")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--interval", type=float, default=15.0, help="seconds between frames (10+ recommended on MBP CPU)")
+    ap.add_argument("--interval", type=float, default=15.0)
     ap.add_argument("--device", default="/dev/video0")
     args = ap.parse_args()
 
-    # Graceful shutdown
     running = {"flag": True}
     def on_term(_s, _f): running["flag"] = False
     signal.signal(signal.SIGTERM, on_term)
     signal.signal(signal.SIGINT, on_term)
 
-    # Log file
     log_file = None
     if not args.dry_run:
         log_dir = LOG_DIR if LOG_DIR.exists() else LOG_FALLBACK
         log_file = log_dir / "tc-see.log"
 
-    # Load roster
     roster = load_roster()
     if roster:
-        print(f"  tc-see: loaded {len(roster)} enrolled face(s): {', '.join(roster.keys())}")
+        print(f"  tc-see: loaded {len(roster)} enrolled face(s): {', '.join(roster.keys())}", flush=True)
     else:
-        print("  tc-see: no enrolled faces — detection only, no identification")
+        print("  tc-see: no enrolled faces — detection only", flush=True)
 
-    # Open camera
     cap = cv2.VideoCapture(args.device, cv2.CAP_V4L2)
     if not cap.isOpened():
         print(f"  tc-see: failed to open {args.device}", file=sys.stderr)
         return 1
 
-    # Warm up camera (facetimehd needs a few frames)
     for _ in range(3):
         cap.read()
         time.sleep(0.1)
 
-    print(f"  tc-see: running (interval={args.interval}s, device={args.device})", flush=True)
+    print(f"  tc-see: running (interval={args.interval}s)", flush=True)
+
+    # ── Presence state ────────────────────────────────────────────────
     prev_names: set[str] = set()
+    first_seen: dict[str, float] = {}   # name → timestamp
+    last_seen: dict[str, float] = {}    # name → timestamp
+    care_fired: dict[str, set[str]] = {}  # name → set of thresholds already fired
     frame_count = 0
 
     try:
@@ -137,48 +178,122 @@ def main() -> int:
 
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_count += 1
+            now = now_ts()
 
-            # Detect
             locations = face_recognition.face_locations(rgb, model="hog")
             if args.dry_run:
-                print(f"  frame {frame_count}: {len(locations)} face(s) detected", flush=True)
+                print(f"  frame {frame_count}: {len(locations)} face(s)", flush=True)
 
             if not locations:
-                if prev_names:
-                    line = f"[{now_iso()}] nobody visible"
-                    log_line(log_file, line, args.dry_run)
-                    if not args.dry_run:
-                        bus_send("[vision] nobody visible")
-                    prev_names = set()
+                # Anyone who was visible is now gone
+                for name in list(prev_names):
+                    if name in first_seen:
+                        dur = now - first_seen[name]
+                        line = f"[{now_iso()}] {name} left after {fmt_duration(dur)}"
+                        log_line(log_file, line, args.dry_run)
+                        if not args.dry_run:
+                            bus_send(f"[vision] {name} left after {fmt_duration(dur)}")
+                        del first_seen[name]
+                        last_seen.pop(name, None)
+                        care_fired.pop(name, None)
+                prev_names = set()
+                save_presence({}, args.dry_run)
                 time.sleep(args.interval)
                 continue
 
-            # Identify each face
+            # Identify
             encodings = face_recognition.face_encodings(rgb, known_face_locations=locations)
             current_names: set[str] = set()
-            details = []
+            has_stranger = False
 
             for enc, loc in zip(encodings, locations):
                 name, conf = identify(enc, roster)
                 current_names.add(name)
-                top, right, bottom, left = loc
-                details.append(f"{name}(conf={conf:.2f} at {left},{top})")
 
-            # Only log/bus when the set of visible people changes
-            if current_names != prev_names:
-                summary = ", ".join(sorted(current_names))
-                detail_str = "; ".join(details)
-                line = f"[{now_iso()}] sees: {summary} [{detail_str}]"
+                if name == "Unknown":
+                    has_stranger = True
+
+                # Track presence
+                if name not in first_seen:
+                    first_seen[name] = now
+                    care_fired[name] = set()
+                last_seen[name] = now
+
+            # Stranger screenshot
+            if has_stranger:
+                path = save_stranger(frame, locations, args.dry_run)
+                if path:
+                    log_line(log_file, f"[{now_iso()}] stranger screenshot: {path}", args.dry_run)
+                    if not args.dry_run:
+                        bus_send(f"[vision] ⚠️ unknown person detected — screenshot saved")
+
+            # Log arrivals/departures
+            arrived = current_names - prev_names
+            departed = prev_names - current_names
+
+            for name in arrived:
+                line = f"[{now_iso()}] {name} arrived"
                 log_line(log_file, line, args.dry_run)
                 if not args.dry_run:
-                    bus_send(f"[vision] sees: {summary}")
-                prev_names = current_names
+                    bus_send(f"[vision] {name} arrived")
+
+            for name in departed:
+                dur = now - first_seen.get(name, now)
+                line = f"[{now_iso()}] {name} left after {fmt_duration(dur)}"
+                log_line(log_file, line, args.dry_run)
+                if not args.dry_run:
+                    bus_send(f"[vision] {name} left after {fmt_duration(dur)}")
+                first_seen.pop(name, None)
+                last_seen.pop(name, None)
+                care_fired.pop(name, None)
+
+            prev_names = current_names
+
+            # ── Care engine thresholds ────────────────────────────────
+            for name in current_names:
+                if name == "Unknown":
+                    continue
+                dur = now - first_seen.get(name, now)
+                fired = care_fired.get(name, set())
+
+                if dur >= CARE_ALERT and "alert" not in fired:
+                    line = f"[{now_iso()}] ⚠️ CARE ALERT: {name} has been present {fmt_duration(dur)} — alerting family"
+                    log_line(log_file, line, args.dry_run)
+                    if not args.dry_run:
+                        bus_send(f"[care] ⚠️ {name} has been at the desk for {fmt_duration(dur)}. Someone please intervene.")
+                    fired.add("alert")
+                elif dur >= CARE_FIRM and "firm" not in fired:
+                    line = f"[{now_iso()}] care: {name} has been present {fmt_duration(dur)} — firm nudge"
+                    log_line(log_file, line, args.dry_run)
+                    if not args.dry_run:
+                        bus_send(f"[care] {name}, you've been at it for {fmt_duration(dur)}. Please eat something and stretch.")
+                    fired.add("firm")
+                elif dur >= CARE_GENTLE and "gentle" not in fired:
+                    line = f"[{now_iso()}] care: {name} has been present {fmt_duration(dur)} — gentle reminder"
+                    log_line(log_file, line, args.dry_run)
+                    if not args.dry_run:
+                        bus_send(f"[care] Hey {name}, you've been in frame for {fmt_duration(dur)}. Maybe grab some water?")
+                    fired.add("gentle")
+
+                care_fired[name] = fired
+
+            # ── Write presence JSON ───────────────────────────────────
+            presence = {}
+            for name in current_names:
+                dur = now - first_seen.get(name, now)
+                presence[name] = {
+                    "first_seen": first_seen.get(name),
+                    "duration_s": round(dur),
+                    "duration_human": fmt_duration(dur),
+                }
+            save_presence(presence, args.dry_run)
 
             time.sleep(args.interval)
 
     finally:
         cap.release()
-        print("  tc-see: stopped")
+        save_presence({}, args.dry_run)
+        print("  tc-see: stopped", flush=True)
 
     return 0
 
