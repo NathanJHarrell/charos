@@ -1,47 +1,85 @@
 #!/run/current-system/sw/bin/bash
-# define — look up a word via dictionaryapi.dev
-# Usage: define <word>
-set -euo pipefail
+# define — tiered word/phrase lookup
+#
+# Layer 0: dictionaryapi.dev (free, fast, authoritative for common words)
+# Layer 1: Wikipedia API (handles phrases, technical terms, proper nouns)
+# Layer 2: Haiku (Claude haiku, omniscient fallback — handles ANYTHING)
+#
+# Usage: define <word or phrase>
+
+set -uo pipefail
 
 BOLD='\033[1m'  DIM='\033[2m'  CYAN='\033[36m'  YELLOW='\033[33m'
-GREEN='\033[32m'  RED='\033[31m'  RESET='\033[0m'
+GREEN='\033[32m'  RED='\033[31m'  EMBER='\033[38;2;255;121;51m'
+MAGENTA='\033[35m'  RESET='\033[0m'
 
 if [[ $# -lt 1 ]]; then
-  echo -e "${RED}Usage:${RESET} define <word>"
+  echo -e "${RED}Usage:${RESET} define <word or phrase>"
   exit 1
 fi
 
-WORD="$1"
-URL="https://api.dictionaryapi.dev/api/v2/entries/en/${WORD}"
+QUERY="$*"
 
-RESP=$(curl -sf "$URL" 2>/dev/null) || {
-  echo -e "${RED}Word not found:${RESET} ${BOLD}${WORD}${RESET}"
-  exit 1
-}
+# ── Layer 0: dictionaryapi.dev ──────────────────────────────────────────
+# Only works for single words. Skip for multi-word phrases.
+if [[ ! "$QUERY" =~ \  ]]; then
+  RESP=$(curl -sf "https://api.dictionaryapi.dev/api/v2/entries/en/${QUERY}" 2>/dev/null) && {
+    TITLE=$(echo "$RESP" | jq -r '.[0].word')
+    PHONETIC=$(echo "$RESP" | jq -r '.[0].phonetic // empty')
+    echo ""
+    echo -e "  ${BOLD}${CYAN}${TITLE}${RESET}  ${DIM}${PHONETIC}${RESET}  ${DIM}(dictionary)${RESET}"
+    echo ""
+    echo "$RESP" | jq -r '
+      .[0].meanings[] |
+      "  \(.partOfSpeech)\n" +
+      ( .definitions | to_entries[] |
+        "    \(.key + 1). \(.value.definition)" +
+        (if .value.example then "\n       \"\(.value.example)\"" else "" end)
+      )
+    ' | while IFS= read -r line; do
+      if [[ "$line" =~ ^\ \ [a-z] && ! "$line" =~ ^\ \ \ \  ]]; then
+        echo -e "  ${YELLOW}${BOLD}${line## }${RESET}"
+      elif [[ "$line" =~ ^\ \ \ \ \ \ \ \" ]]; then
+        echo -e "${DIM}${line}${RESET}"
+      else
+        echo -e "${GREEN}${line}${RESET}"
+      fi
+    done
+    echo ""
+    exit 0
+  }
+  echo -e "  ${DIM}layer 0 (dictionary): miss${RESET}" >&2
+fi
 
-# Word + phonetic
-TITLE=$(echo "$RESP" | jq -r '.[0].word')
-PHONETIC=$(echo "$RESP" | jq -r '.[0].phonetic // empty')
-echo ""
-echo -e "  ${BOLD}${CYAN}${TITLE}${RESET}  ${DIM}${PHONETIC}${RESET}"
-echo ""
-
-# Meanings
-echo "$RESP" | jq -r '
-  .[0].meanings[] |
-  "  \(.partOfSpeech)\n" +
-  ( .definitions | to_entries[] |
-    "    \(.key + 1). \(.value.definition)" +
-    (if .value.example then "\n       \"\(.value.example)\"" else "" end)
-  )
-' | while IFS= read -r line; do
-  # Color part-of-speech headers
-  if [[ "$line" =~ ^\ \ [a-z] && ! "$line" =~ ^\ \ \ \  ]]; then
-    echo -e "  ${YELLOW}${BOLD}${line## }${RESET}"
-  elif [[ "$line" =~ ^\ \ \ \ \ \ \ \" ]]; then
-    echo -e "${DIM}${line}${RESET}"
-  else
-    echo -e "${GREEN}${line}${RESET}"
+# ── Layer 1: Wikipedia API ──────────────────────────────────────────────
+WIKI_QUERY=$(echo "$QUERY" | sed 's/ /%20/g')
+WIKI=$(curl -sf "https://en.wikipedia.org/api/rest_v1/page/summary/${WIKI_QUERY}" 2>/dev/null)
+if [[ -n "$WIKI" ]] && echo "$WIKI" | jq -e '.extract' >/dev/null 2>&1; then
+  TITLE=$(echo "$WIKI" | jq -r '.title')
+  DESC=$(echo "$WIKI" | jq -r '.description // empty')
+  EXTRACT=$(echo "$WIKI" | jq -r '.extract')
+  if [[ "$EXTRACT" != "null" && -n "$EXTRACT" ]]; then
+    echo ""
+    echo -e "  ${BOLD}${CYAN}${TITLE}${RESET}  ${DIM}${DESC}${RESET}  ${DIM}(wikipedia)${RESET}"
+    echo ""
+    echo "$EXTRACT" | fold -s -w 72 | sed 's/^/    /'
+    echo ""
+    exit 0
   fi
-done
-echo ""
+fi
+echo -e "  ${DIM}layer 1 (wikipedia): miss${RESET}" >&2
+
+# ── Layer 2: Haiku ──────────────────────────────────────────────────────
+echo -e "  ${EMBER}layer 2: asking haiku…${RESET}" >&2
+HAIKU_RESP=$(claude --model haiku -p "Define '${QUERY}' in 2-4 sentences. Be precise and conversational. If it's a technical term, explain it so a smart non-expert understands. No preamble, just the definition." 2>/dev/null)
+if [[ -n "$HAIKU_RESP" ]]; then
+  echo ""
+  echo -e "  ${BOLD}${MAGENTA}${QUERY}${RESET}  ${DIM}(haiku)${RESET}"
+  echo ""
+  echo "$HAIKU_RESP" | fold -s -w 72 | sed 's/^/    /'
+  echo ""
+  exit 0
+fi
+
+echo -e "${RED}All layers failed for:${RESET} ${BOLD}${QUERY}${RESET}"
+exit 1
