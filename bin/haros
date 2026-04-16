@@ -1,0 +1,451 @@
+#!/usr/bin/env bash
+# haros — HAROS battalion CLI
+# Unified command for orchestrators, team leads, and agents.
+#
+# Usage:
+#   haros list                          — all active builds
+#   haros status [build]                — session detail (auto-detects build)
+#   haros spawn <build> <label>         — create a named session
+#   haros attach <build> [label]        — attach to a session
+#   haros tree <build>                  — agent hierarchy
+#   haros cleanup [build] [--force]     — kill stale sessions + orphans
+#   haros kill <build> [--force]        — tear down entire build
+#   haros log <session> [lines]         — capture recent output
+#   haros broadcast <build> <message>   — send to all sessions in a build
+
+set -euo pipefail
+
+EMBER='\033[38;2;255;89;0m'
+GREEN='\033[32m'
+DIM='\033[2m'
+RED='\033[31m'
+BOLD='\033[1m'
+RESET='\033[0m'
+PORT="${HAROS_PORT:-4200}"
+
+# ── Helpers ─────────────────────────────────────────────
+
+format_age() {
+  local s=$1
+  if (( s < 60 )); then echo "${s}s ago"
+  elif (( s < 3600 )); then echo "$(( s / 60 ))m ago"
+  elif (( s < 86400 )); then echo "$(( s / 3600 ))h ago"
+  else echo "$(( s / 86400 ))d ago"; fi
+}
+
+current_build() {
+  local session
+  session=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo "")
+  if [[ "$session" =~ ^haros- ]]; then
+    local remainder="${session#haros-}"
+    echo "${remainder%%-*}"
+  fi
+}
+
+list_haros_sessions() {
+  tmux list-sessions -F '#{session_name}:#{session_windows}:#{session_attached}:#{session_activity}:#{session_created}' 2>/dev/null \
+    | grep '^haros-' || true
+}
+
+# ── Commands ────────────────────────────────────────────
+
+cmd_list() {
+  local sessions
+  sessions=$(list_haros_sessions)
+
+  if [[ -z "$sessions" ]]; then
+    echo -e "${DIM}No active HAROS builds${RESET}"
+    echo -e "${DIM}Start one with: haros spawn <build> <label>${RESET}"
+    return
+  fi
+
+  declare -A build_counts build_ages
+  local now
+  now=$(date +%s)
+
+  while IFS=: read -r name windows attached activity created; do
+    local remainder="${name#haros-}"
+    local build="${remainder%%-*}"
+    build_counts[$build]=$(( ${build_counts[$build]:-0} + 1 ))
+    local age=$(( now - created ))
+    if [[ -z "${build_ages[$build]:-}" ]] || (( age > build_ages[$build] )); then
+      build_ages[$build]=$age
+    fi
+  done <<< "$sessions"
+
+  printf "${BOLD}%-16s %-10s %-16s${RESET}\n" "BUILD" "SESSIONS" "STARTED"
+  for build in "${!build_counts[@]}"; do
+    printf "${EMBER}%-16s${RESET} %-10s %-16s\n" \
+      "$build" "${build_counts[$build]}" "$(format_age "${build_ages[$build]}")"
+  done
+}
+
+cmd_status() {
+  local build="${1:-$(current_build)}"
+  if [[ -z "$build" ]]; then
+    echo -e "${RED}Usage: haros status <build>${RESET}"
+    echo -e "${DIM}(or run from inside a HAROS session to auto-detect)${RESET}"
+    return 1
+  fi
+
+  local sessions
+  sessions=$(list_haros_sessions | grep "^haros-${build}-" || true)
+
+  if [[ -z "$sessions" ]]; then
+    echo -e "${RED}No sessions found for build '${build}'${RESET}"
+    return 1
+  fi
+
+  local now
+  now=$(date +%s)
+  local build_age=0
+  local first=true
+
+  # Collect for header
+  while IFS=: read -r name _ _ _ created; do
+    local age=$(( now - created ))
+    if (( age > build_age )); then build_age=$age; fi
+  done <<< "$sessions"
+
+  echo -e "${BOLD}Build: ${EMBER}${build}${RESET}  ${DIM}Started: $(format_age $build_age)${RESET}"
+  echo ""
+  printf "${BOLD}%-30s %-14s %-12s %-8s${RESET}\n" "SESSION" "TYPE" "STATE" "IDLE"
+
+  while IFS=: read -r name windows attached activity created; do
+    local remainder="${name#haros-${build}-}"
+    local label="$remainder"
+
+    # Detect type from label
+    local type="worker"
+    [[ "$label" =~ ^orch ]] && type="orchestrator"
+    [[ "$label" =~ ^lead ]] && type="lead"
+    [[ "$label" =~ ^headless ]] && type="headless"
+
+    local state="detached"
+    local state_color="$DIM"
+    if [[ "$attached" == "1" ]]; then
+      state="attached"
+      state_color="$GREEN"
+    fi
+
+    local idle=$(( now - activity ))
+
+    # Check if current session
+    local marker=""
+    local cur_session
+    cur_session=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo "")
+    [[ "$name" == "$cur_session" ]] && marker=" ${EMBER}← you${RESET}"
+
+    printf "%-30s %-14s ${state_color}%-12s${RESET} %-8s%b\n" \
+      "$name" "$type" "$state" "$(format_age $idle)" "$marker"
+  done <<< "$sessions"
+}
+
+cmd_spawn() {
+  local build="${1:-}"
+  local label="${2:-}"
+
+  if [[ -z "$build" || -z "$label" ]]; then
+    echo -e "${RED}Usage: haros spawn <build> <label>${RESET}"
+    return 1
+  fi
+
+  local session="haros-${build}-${label}"
+
+  if tmux has-session -t "$session" 2>/dev/null; then
+    echo -e "${RED}Session '$session' already exists${RESET}"
+    return 1
+  fi
+
+  tmux new-session -d -s "$session" "bypass claude --dangerously-skip-permissions"
+  echo -e "${GREEN}Spawned: ${EMBER}${session}${RESET}"
+}
+
+cmd_attach() {
+  local build="${1:-}"
+  local label="${2:-}"
+
+  if [[ -z "$build" ]]; then
+    echo -e "${RED}Usage: haros attach <build> [label]${RESET}"
+    return 1
+  fi
+
+  local session
+  if [[ -n "$label" ]]; then
+    session="haros-${build}-${label}"
+  else
+    # Find first session for this build
+    session=$(tmux list-sessions -F '#{session_name}' 2>/dev/null \
+      | grep "^haros-${build}-" | head -1 || true)
+    if [[ -z "$session" ]]; then
+      echo -e "${RED}No sessions found for build '${build}'${RESET}"
+      return 1
+    fi
+  fi
+
+  exec tmux attach-session -t "$session"
+}
+
+cmd_tree() {
+  local build="${1:-$(current_build)}"
+  if [[ -z "$build" ]]; then
+    echo -e "${RED}Usage: haros tree <build>${RESET}"
+    return 1
+  fi
+
+  local sessions
+  sessions=$(list_haros_sessions | grep "^haros-${build}-" || true)
+
+  if [[ -z "$sessions" ]]; then
+    echo -e "${RED}No sessions found for build '${build}'${RESET}"
+    return 1
+  fi
+
+  local now
+  now=$(date +%s)
+  local build_age=0
+  while IFS=: read -r _ _ _ _ created; do
+    local age=$(( now - created ))
+    (( age > build_age )) && build_age=$age
+  done <<< "$sessions"
+
+  echo -e "${EMBER}${build}${RESET} ${DIM}($(hostname), $(format_age $build_age))${RESET}"
+
+  local cur_session
+  cur_session=$(tmux display-message -p '#{session_name}' 2>/dev/null || echo "")
+
+  # Collect sessions into arrays by type
+  local -a orchs=() leads=() workers=() headless_sessions=()
+
+  while IFS=: read -r name windows attached activity created; do
+    local label="${name#haros-${build}-}"
+    if [[ "$label" =~ ^orch ]]; then orchs+=("$name")
+    elif [[ "$label" =~ ^lead ]]; then leads+=("$name")
+    elif [[ "$label" =~ ^headless ]]; then headless_sessions+=("$name")
+    else workers+=("$name"); fi
+  done <<< "$sessions"
+
+  # Find headless claude processes (claude -p) related to this build
+  local headless_pids=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && headless_pids+=("$line")
+  done < <(pgrep -af "claude.*-p" 2>/dev/null | grep -v "grep" || true)
+
+  # Print tree
+  local all_sessions=("${orchs[@]}" "${leads[@]}" "${workers[@]}" "${headless_sessions[@]}")
+  local total=${#all_sessions[@]}
+  local i=0
+
+  for name in "${all_sessions[@]}"; do
+    i=$((i + 1))
+    local label="${name#haros-${build}-}"
+    local prefix="├──"
+    [[ $i -eq $total && ${#headless_pids[@]} -eq 0 ]] && prefix="└──"
+
+    # Check if claude is running in this session
+    local session_pid
+    session_pid=$(tmux list-panes -t "$name" -F '#{pane_pid}' 2>/dev/null | head -1 || echo "")
+    local agent_type="interactive"
+    if [[ -n "$session_pid" ]]; then
+      # Check child processes for claude
+      local has_claude
+      has_claude=$(pgrep -P "$session_pid" -f "claude" 2>/dev/null | head -1 || true)
+      [[ -z "$has_claude" ]] && agent_type="no agent"
+    fi
+
+    local marker=""
+    [[ "$name" == "$cur_session" ]] && marker=" ${EMBER}← you are here${RESET}"
+
+    echo -e "${prefix} ${BOLD}${label}${RESET} ${DIM}[${agent_type}]${RESET}${marker}"
+  done
+
+  # Headless charmanders
+  if [[ ${#headless_pids[@]} -gt 0 ]]; then
+    echo -e "└── ${DIM}headless: ${#headless_pids[@]} charmander(s)${RESET}"
+    for line in "${headless_pids[@]}"; do
+      local pid="${line%% *}"
+      echo -e "    ${DIM}PID ${pid}${RESET}"
+    done
+  fi
+}
+
+cmd_cleanup() {
+  local build="${1:-}"
+  local force=false
+  [[ "${2:-}" == "--force" || "${1:-}" == "--force" ]] && force=true
+  [[ "${1:-}" == "--force" ]] && build=""
+
+  local sessions
+  if [[ -n "$build" ]]; then
+    sessions=$(list_haros_sessions | grep "^haros-${build}-" || true)
+  else
+    sessions=$(list_haros_sessions)
+  fi
+
+  if [[ -z "$sessions" ]]; then
+    echo -e "${GREEN}Nothing to clean up${RESET}"
+    return
+  fi
+
+  local now
+  now=$(date +%s)
+  local -a stale=()
+
+  while IFS=: read -r name windows attached activity created; do
+    local idle=$(( now - activity ))
+    # Stale = detached + idle > 5 min + no claude process
+    if [[ "$attached" != "1" ]] && (( idle > 300 )); then
+      local session_pid
+      session_pid=$(tmux list-panes -t "$name" -F '#{pane_pid}' 2>/dev/null | head -1 || echo "")
+      local has_claude=""
+      if [[ -n "$session_pid" ]]; then
+        has_claude=$(pgrep -P "$session_pid" -f "claude" 2>/dev/null | head -1 || true)
+      fi
+      if [[ -z "$has_claude" ]]; then
+        stale+=("$name:$idle")
+      fi
+    fi
+  done <<< "$sessions"
+
+  if [[ ${#stale[@]} -eq 0 ]]; then
+    echo -e "${GREEN}No stale sessions found${RESET}"
+    return
+  fi
+
+  echo -e "${BOLD}Stale sessions:${RESET}"
+  for entry in "${stale[@]}"; do
+    local name="${entry%%:*}"
+    local idle="${entry#*:}"
+    echo -e "  ${name}  ${DIM}(no claude process, idle $(format_age $idle))${RESET}"
+  done
+
+  if [[ "$force" != true ]]; then
+    echo ""
+    read -rp "Kill ${#stale[@]} session(s)? [y/N] " answer
+    [[ "$answer" != "y" && "$answer" != "Y" ]] && return
+  fi
+
+  for entry in "${stale[@]}"; do
+    local name="${entry%%:*}"
+    tmux kill-session -t "$name" 2>/dev/null && \
+      echo -e "${GREEN}Killed: ${name}${RESET}" || \
+      echo -e "${RED}Failed to kill: ${name}${RESET}"
+  done
+}
+
+cmd_kill() {
+  local build="${1:-}"
+  local force=false
+  [[ "${2:-}" == "--force" ]] && force=true
+
+  if [[ -z "$build" ]]; then
+    echo -e "${RED}Usage: haros kill <build> [--force]${RESET}"
+    return 1
+  fi
+
+  local sessions
+  sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null \
+    | grep "^haros-${build}-" || true)
+
+  if [[ -z "$sessions" ]]; then
+    echo -e "${RED}No sessions found for build '${build}'${RESET}"
+    return 1
+  fi
+
+  local count
+  count=$(echo "$sessions" | wc -l)
+
+  if [[ "$force" != true ]]; then
+    echo -e "${RED}${BOLD}Kill ${count} session(s) for build '${build}'?${RESET}"
+    echo "$sessions" | while read -r s; do echo "  $s"; done
+    echo ""
+    read -rp "Confirm? [y/N] " answer
+    [[ "$answer" != "y" && "$answer" != "Y" ]] && return
+  fi
+
+  echo "$sessions" | while read -r s; do
+    tmux kill-session -t "$s" 2>/dev/null && \
+      echo -e "${GREEN}Killed: ${s}${RESET}" || \
+      echo -e "${RED}Failed: ${s}${RESET}"
+  done
+}
+
+cmd_log() {
+  local session="${1:-}"
+  local lines="${2:-50}"
+
+  if [[ -z "$session" ]]; then
+    echo -e "${RED}Usage: haros log <session-name> [lines]${RESET}"
+    return 1
+  fi
+
+  # Allow shorthand: if it doesn't start with haros-, assume it's a full session name
+  if ! tmux has-session -t "$session" 2>/dev/null; then
+    echo -e "${RED}Session '${session}' not found${RESET}"
+    return 1
+  fi
+
+  tmux capture-pane -t "$session" -p -S "-${lines}"
+}
+
+cmd_broadcast() {
+  local build="${1:-}"
+  shift 2>/dev/null || true
+  local message="$*"
+
+  if [[ -z "$build" || -z "$message" ]]; then
+    echo -e "${RED}Usage: haros broadcast <build> <message>${RESET}"
+    return 1
+  fi
+
+  local sessions
+  sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null \
+    | grep "^haros-${build}-" || true)
+
+  if [[ -z "$sessions" ]]; then
+    echo -e "${RED}No sessions found for build '${build}'${RESET}"
+    return 1
+  fi
+
+  local count=0
+  echo "$sessions" | while read -r s; do
+    tmux send-keys -t "$s" "" Enter
+    tmux send-keys -t "$s" "# [HAROS BROADCAST] ${message}" Enter
+    count=$((count + 1))
+  done
+
+  echo -e "${GREEN}Broadcast sent to $(echo "$sessions" | wc -l) session(s)${RESET}"
+}
+
+cmd_help() {
+  echo -e "${EMBER}${BOLD}HAROS${RESET} — Battalion CLI"
+  echo ""
+  echo -e "  ${BOLD}haros list${RESET}                          All active builds"
+  echo -e "  ${BOLD}haros status${RESET} [build]                Session detail (auto-detects build)"
+  echo -e "  ${BOLD}haros spawn${RESET} <build> <label>         Create a named session"
+  echo -e "  ${BOLD}haros attach${RESET} <build> [label]        Attach to a session"
+  echo -e "  ${BOLD}haros tree${RESET} <build>                  Agent hierarchy"
+  echo -e "  ${BOLD}haros cleanup${RESET} [build] [--force]     Kill stale sessions"
+  echo -e "  ${BOLD}haros kill${RESET} <build> [--force]        Tear down entire build"
+  echo -e "  ${BOLD}haros log${RESET} <session> [lines]         Capture recent output"
+  echo -e "  ${BOLD}haros broadcast${RESET} <build> <message>   Send to all sessions"
+  echo ""
+  echo -e "  ${DIM}Session naming: haros-{build}-{label}${RESET}"
+  echo -e "  ${DIM}FOV web UI: http://localhost:${PORT}${RESET}"
+}
+
+# ── Dispatch ────────────────────────────────────────────
+
+case "${1:-help}" in
+  list)      cmd_list ;;
+  status)    shift; cmd_status "$@" ;;
+  spawn)     shift; cmd_spawn "$@" ;;
+  attach)    shift; cmd_attach "$@" ;;
+  tree)      shift; cmd_tree "$@" ;;
+  cleanup)   shift; cmd_cleanup "$@" ;;
+  kill)      shift; cmd_kill "$@" ;;
+  log)       shift; cmd_log "$@" ;;
+  broadcast) shift; cmd_broadcast "$@" ;;
+  help|--help|-h) cmd_help ;;
+  *)         echo -e "${RED}Unknown command: ${1}${RESET}"; cmd_help; exit 1 ;;
+esac

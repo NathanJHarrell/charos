@@ -40,6 +40,10 @@
       faster-whisper    # High-accuracy offline STT
       speechbrain       # ECAPA-TDNN speaker embeddings — voice-print ID
       soundfile         # Read/write WAVs for the voice-enroll pipeline
+      fastapi           # HAROS-FOV + jukebox web backend
+      uvicorn           # ASGI server for FastAPI
+      websockets        # WebSocket client/server (FOV terminal proxy)
+      pydantic          # FastAPI data validation
     ]))
 
     # ── The Workshop ─────────────────────────────────────────────────────
@@ -90,6 +94,8 @@
     mpv                  # Video player
     ffmpeg               # Video processing
     imv                  # Wayland-native image viewer — imv /path/to.png
+    potrace              # Bitmap → SVG vector tracing (laser-cut panel design pipeline)
+    imagemagick          # Image conversion (PNG → BMP for potrace)
     piper-tts            # Local neural TTS for tc-say / tc-phone
     whisper-cpp          # Fast whisper for light STT tasks
 

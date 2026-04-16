@@ -1,0 +1,7 @@
+{
+  "machines": [
+    {"hostname": "nest", "address": "nest", "local": true},
+    {"hostname": "jarvis", "address": "jarvis", "local": false}
+  ],
+  "port": 4200
+}

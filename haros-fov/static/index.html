@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HAROS FOV</title>
+  <link rel="stylesheet" href="/fov.css">
+  <!-- xterm.js from CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css">
+  <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+</head>
+<body>
+  <header id="app-header">
+    <div class="header-left">
+      <h1 id="header-title"><a href="#/">HAROS FOV</a></h1>
+      <span id="header-breadcrumb"></span>
+    </div>
+    <div class="header-right">
+      <span id="machine-status"></span>
+    </div>
+  </header>
+  <main id="app"></main>
+  <script src="/fov.js"></script>
+</body>
+</html>

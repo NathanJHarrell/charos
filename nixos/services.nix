@@ -208,6 +208,30 @@
     nameserver 1.1.1.1
   '';
 
+  # ── HAROS FOV — Battalion Field of View ────────────────────────────────────
+  # Web-based tmux session viewer for orchestrating parallel HAROS builds.
+  # Port 4200. Discovers haros-* sessions, serves xterm.js terminals in browser.
+  # Accessible from any machine on Tailscale.
+  systemd.services.haros-fov = {
+    description = "HAROS FOV — Battalion Session Viewer";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos/haros-fov/server.py";
+    };
+    serviceConfig = {
+      ExecStart = "/run/current-system/sw/bin/python3 -m uvicorn server:app --host 0.0.0.0 --port 4200";
+      WorkingDirectory = "/home/nate/charos/haros-fov";
+      Restart = "on-failure";
+      RestartSec = "10s";
+      User = "nate";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+      ];
+    };
+  };
+
   # ── Docker ────────────────────────────────────────────────────────────────
   # Container runtime. User `nate` added to the `docker` group in users.nix
   # for non-sudo access (requires new session / `newgrp docker` to take effect).
