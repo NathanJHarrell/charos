@@ -139,6 +139,9 @@ bar {
   height 28
   status_command /home/nate/charos/bin/dock-status
   font "JetBrains Mono Nerd Font 11"
+  # i3bar click protocol — makes every segment clickable
+  status_padding 0
+  status_edge_padding 4
   colors {
     background #1a1a1aee
     statusline #ff7a33

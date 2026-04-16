@@ -1,6 +1,10 @@
 #!/run/current-system/sw/bin/bash
-# dock-status — swaybar status line for the CHAROS human dock.
-# Outputs one line every 30s. swaybar renders it at the bottom.
+# dock-status — swaybar status line with i3bar click events.
+# Outputs JSON protocol so each segment is clickable.
+
+echo '{"version":1,"click_events":true}'
+echo '['
+echo '[]'
 
 while true; do
   # Battery
@@ -11,21 +15,60 @@ while true; do
     Full)     BATICON="✓" ;;
     *)        BATICON="🔋" ;;
   esac
+  [ "$BAT" -lt 20 ] 2>/dev/null && BATCOLOR="#cc4444" || BATCOLOR="#66cc88"
 
   # Volume
   VOL=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{printf "%.0f", $2*100}' || echo "?")
 
   # VPN
   if systemctl is-active --quiet wg-quick-proton-us-nj 2>/dev/null; then
-    VPN="🛡️ON"
+    VPN_BLOCK='{"full_text":" 🛡️ VPN ","name":"vpn","color":"#66cc88"},'
   else
-    VPN=""
+    VPN_BLOCK=''
   fi
 
   # Clock
   TIME=$(date +'%a %b %d  %I:%M %p')
 
-  # Assemble
-  echo "🦊 Firefox  │  📝 Note  │  🏠 Home  │  📊 htop  │  🔥 TC  │  ${VPN:+$VPN  │  }🔊${VOL}%  │  ${BATICON}${BAT}%  │  ${TIME}"
+  # Bus unread
+  UNREAD=$(curl -sf http://127.0.0.1:4318/inbox/Nathan 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('unread_count',0))" 2>/dev/null || echo 0)
+  if [ "$UNREAD" -gt 0 ]; then
+    BUS_BLOCK="{\"full_text\":\" 💬 ${UNREAD} \",\"name\":\"bus\",\"color\":\"#ff7a33\"},"
+  else
+    BUS_BLOCK=""
+  fi
+
+  cat << EOF
+,[
+  {"full_text":" 🦊 Firefox ","name":"firefox","color":"#ff7a33"},
+  {"full_text":" 📝 Note ","name":"note","color":"#e0e0e0"},
+  {"full_text":" 🏠 Home ","name":"home","color":"#e0e0e0"},
+  {"full_text":" 📊 htop ","name":"htop","color":"#e0e0e0"},
+  {"full_text":" 🔥 TC ","name":"tc","color":"#ff5900"},
+  {"full_text":" ⚡ GRIND ","name":"grind","color":"#cca000"},
+  ${BUS_BLOCK}${VPN_BLOCK}{"full_text":" 🔊${VOL}% ","name":"volume","color":"#aaaaaa"},
+  {"full_text":" ${BATICON}${BAT}% ","name":"battery","color":"${BATCOLOR}"},
+  {"full_text":" ${TIME} ","name":"clock","color":"#ff7a33"}
+]
+EOF
   sleep 30
+done &
+
+# Handle click events from swaybar
+while IFS= read -r line; do
+  # Strip leading comma from i3bar protocol
+  line="${line#,}"
+  NAME=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null)
+  case "$NAME" in
+    firefox) swaymsg exec firefox ;;
+    note)    swaymsg exec 'note' ;;
+    home)    swaymsg exec 'foot -- bash -c "cd ~/Manor/Nathan && exec bash"' ;;
+    htop)    swaymsg exec 'foot --app-id=htop-dock -- htop' ;;
+    tc)      /home/nate/.local/bin/tc-drawer ;;
+    grind)   /home/nate/.local/bin/grind-drawer ;;
+    volume)  wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+    vpn)     /home/nate/.local/bin/vpn toggle ;;
+    bus)     swaymsg exec 'foot -- bash -c "bus recv --all --limit 20; read -p \"Press enter...\""' ;;
+    clock)   ;; # no action — it's a clock
+  esac
 done
