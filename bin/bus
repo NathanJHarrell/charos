@@ -22,7 +22,9 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-BUS_URL = os.environ.get("BUS_URL", "http://127.0.0.1:4318").rstrip("/")
+# Jarvis is the canonical family bus — Mom and Cora live there.
+# Falls back to local via BUS_URL env override.
+BUS_URL = os.environ.get("BUS_URL", "http://jarvis-wsl:4318").rstrip("/")
 IDENTITY = os.environ.get("BUS_IDENTITY", "TC")
 
 # ANSI colors — cheap and cheerful
