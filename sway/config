@@ -113,6 +113,10 @@ for_window [app_id="grind"] mark grind, floating enable
 for_window [title="^GRIND$"] mark grind, floating enable
 bindsym $mod+Shift+grave exec /home/nate/.local/bin/grind-drawer
 
+# htop drawer — right-side data wall. Faded orange. Dad's data porn.
+for_window [app_id="htop-drawer"] mark htop-drawer, floating enable, move scratchpad
+bindsym $mod+h exec /home/nate/charos/bin/htop-drawer
+
 # Cmd+Enter — spawn a new foot terminal on purpose. Sway convention.
 # Use when you need a second shell (e.g., to run nixos-rebuild while this
 # session stays put). Tiles onto the workspace under whatever floats.

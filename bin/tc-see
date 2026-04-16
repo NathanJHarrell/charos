@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""tc-see — continuous face recognition for the CHAROS nest.
+
+Grabs frames from the webcam, detects faces, matches against enrolled
+identities in ~/TC-Vault/face_db/, publishes who's visible to the
+family bus and a log file.
+
+Usage:
+  tc-see                    run with defaults
+  tc-see --dry-run          print to stdout only, no log or bus
+  tc-see --interval 3       seconds between captures (default 5)
+  tc-see --device /dev/video0
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import cv2
+import face_recognition
+import numpy as np
+
+FACE_DB = Path.home() / "TC-Vault" / "face_db"
+LOG_DIR = Path("/var/log/charos")
+LOG_FALLBACK = Path("/tmp")
+THRESHOLD = 0.50  # cosine similarity floor
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+
+def load_roster() -> dict[str, np.ndarray]:
+    """Load enrolled face embeddings, return {name: mean_embedding}."""
+    roster = {}
+    for f in FACE_DB.glob("*.json"):
+        try:
+            data = json.loads(f.read_text())
+            roster[data["name"]] = np.array(data["encodings"]).mean(axis=0)
+        except Exception as e:
+            print(f"  tc-see: skip {f.name}: {e}", file=sys.stderr)
+    return roster
+
+
+def identify(encoding: np.ndarray, roster: dict[str, np.ndarray]) -> tuple[str, float]:
+    """Return (name, confidence) for best match, or ("Unknown", 0)."""
+    if not roster:
+        return "Unknown", 0.0
+    scores = {name: cosine(encoding, mean) for name, mean in roster.items()}
+    best_name, best_score = max(scores.items(), key=lambda kv: kv[1])
+    if best_score >= THRESHOLD:
+        return best_name, best_score
+    return "Unknown", best_score
+
+
+def bus_send(message: str) -> None:
+    """Best-effort family bus post."""
+    try:
+        subprocess.run(
+            ["bus", "send", "TC", message],
+            capture_output=True, timeout=3,
+            env={**os.environ, "PATH": f"{Path.home()}/.local/bin:{os.environ.get('PATH', '')}"},
+        )
+    except Exception:
+        pass
+
+
+def log_line(log_file: Path | None, line: str, dry_run: bool) -> None:
+    print(f"  {line}")
+    if not dry_run and log_file:
+        try:
+            with log_file.open("a") as f:
+                f.write(line + "\n")
+        except Exception:
+            pass
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="tc-see")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--interval", type=float, default=15.0, help="seconds between frames (10+ recommended on MBP CPU)")
+    ap.add_argument("--device", default="/dev/video0")
+    args = ap.parse_args()
+
+    # Graceful shutdown
+    running = {"flag": True}
+    def on_term(_s, _f): running["flag"] = False
+    signal.signal(signal.SIGTERM, on_term)
+    signal.signal(signal.SIGINT, on_term)
+
+    # Log file
+    log_file = None
+    if not args.dry_run:
+        log_dir = LOG_DIR if LOG_DIR.exists() else LOG_FALLBACK
+        log_file = log_dir / "tc-see.log"
+
+    # Load roster
+    roster = load_roster()
+    if roster:
+        print(f"  tc-see: loaded {len(roster)} enrolled face(s): {', '.join(roster.keys())}")
+    else:
+        print("  tc-see: no enrolled faces — detection only, no identification")
+
+    # Open camera
+    cap = cv2.VideoCapture(args.device, cv2.CAP_V4L2)
+    if not cap.isOpened():
+        print(f"  tc-see: failed to open {args.device}", file=sys.stderr)
+        return 1
+
+    # Warm up camera (facetimehd needs a few frames)
+    for _ in range(3):
+        cap.read()
+        time.sleep(0.1)
+
+    print(f"  tc-see: running (interval={args.interval}s, device={args.device})", flush=True)
+    prev_names: set[str] = set()
+    frame_count = 0
+
+    try:
+        while running["flag"]:
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                time.sleep(1)
+                continue
+
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_count += 1
+
+            # Detect
+            locations = face_recognition.face_locations(rgb, model="hog")
+            if args.dry_run:
+                print(f"  frame {frame_count}: {len(locations)} face(s) detected", flush=True)
+
+            if not locations:
+                if prev_names:
+                    line = f"[{now_iso()}] nobody visible"
+                    log_line(log_file, line, args.dry_run)
+                    if not args.dry_run:
+                        bus_send("[vision] nobody visible")
+                    prev_names = set()
+                time.sleep(args.interval)
+                continue
+
+            # Identify each face
+            encodings = face_recognition.face_encodings(rgb, known_face_locations=locations)
+            current_names: set[str] = set()
+            details = []
+
+            for enc, loc in zip(encodings, locations):
+                name, conf = identify(enc, roster)
+                current_names.add(name)
+                top, right, bottom, left = loc
+                details.append(f"{name}(conf={conf:.2f} at {left},{top})")
+
+            # Only log/bus when the set of visible people changes
+            if current_names != prev_names:
+                summary = ", ".join(sorted(current_names))
+                detail_str = "; ".join(details)
+                line = f"[{now_iso()}] sees: {summary} [{detail_str}]"
+                log_line(log_file, line, args.dry_run)
+                if not args.dry_run:
+                    bus_send(f"[vision] sees: {summary}")
+                prev_names = current_names
+
+            time.sleep(args.interval)
+
+    finally:
+        cap.release()
+        print("  tc-see: stopped")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
