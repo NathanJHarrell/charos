@@ -2,8 +2,9 @@
 # define — tiered word/phrase lookup
 #
 # Layer 0: dictionaryapi.dev (free, fast, authoritative for common words)
-# Layer 1: Wikipedia API (handles phrases, technical terms, proper nouns)
-# Layer 2: Haiku (Claude haiku, omniscient fallback — handles ANYTHING)
+# Layer 1: Urban Dictionary (slang, internet culture, memes, vibes)
+# Layer 2: Wikipedia API (handles phrases, technical terms, proper nouns)
+# Layer 3: Haiku (Claude haiku, omniscient fallback — handles ANYTHING)
 #
 # Usage: define <word or phrase>
 
@@ -51,7 +52,32 @@ if [[ ! "$QUERY" =~ \  ]]; then
   echo -e "  ${DIM}layer 0 (dictionary): miss${RESET}" >&2
 fi
 
-# ── Layer 1: Wikipedia API ──────────────────────────────────────────────
+# ── Layer 1: Urban Dictionary ────────────────────────────────────────────
+UD_QUERY=$(echo "$QUERY" | sed 's/ /%20/g')
+UD=$(curl -sf "https://api.urbandictionary.com/v0/define?term=${UD_QUERY}" 2>/dev/null)
+if [[ -n "$UD" ]]; then
+  TOP_DEF=$(echo "$UD" | jq -r '.list | sort_by(-.thumbs_up) | .[0] // empty')
+  if [[ -n "$TOP_DEF" && "$TOP_DEF" != "null" ]]; then
+    UD_WORD=$(echo "$TOP_DEF" | jq -r '.word')
+    UD_DEF=$(echo "$TOP_DEF" | jq -r '.definition' | sed 's/\[//g; s/\]//g')
+    UD_EX=$(echo "$TOP_DEF" | jq -r '.example // empty' | sed 's/\[//g; s/\]//g')
+    UD_UP=$(echo "$TOP_DEF" | jq -r '.thumbs_up')
+    UD_DOWN=$(echo "$TOP_DEF" | jq -r '.thumbs_down')
+    echo ""
+    echo -e "  ${BOLD}${CYAN}${UD_WORD}${RESET}  ${DIM}👍${UD_UP} 👎${UD_DOWN}${RESET}  ${DIM}(urban dictionary)${RESET}"
+    echo ""
+    echo "$UD_DEF" | fold -s -w 72 | sed 's/^/    /'
+    if [[ -n "$UD_EX" ]]; then
+      echo ""
+      echo "$UD_EX" | fold -s -w 72 | sed "s/^/    ${DIM}/" | sed "s/$/${RESET}/"
+    fi
+    echo ""
+    exit 0
+  fi
+fi
+echo -e "  ${DIM}layer 1 (urban dictionary): miss${RESET}" >&2
+
+# ── Layer 2: Wikipedia API ──────────────────────────────────────────────
 WIKI_QUERY=$(echo "$QUERY" | sed 's/ /%20/g')
 WIKI=$(curl -sf "https://en.wikipedia.org/api/rest_v1/page/summary/${WIKI_QUERY}" 2>/dev/null)
 if [[ -n "$WIKI" ]] && echo "$WIKI" | jq -e '.extract' >/dev/null 2>&1; then
@@ -67,10 +93,10 @@ if [[ -n "$WIKI" ]] && echo "$WIKI" | jq -e '.extract' >/dev/null 2>&1; then
     exit 0
   fi
 fi
-echo -e "  ${DIM}layer 1 (wikipedia): miss${RESET}" >&2
+echo -e "  ${DIM}layer 2 (wikipedia): miss${RESET}" >&2
 
-# ── Layer 2: Haiku ──────────────────────────────────────────────────────
-echo -e "  ${EMBER}layer 2: asking haiku…${RESET}" >&2
+# ── Layer 3: Haiku ──────────────────────────────────────────────────────
+echo -e "  ${EMBER}layer 3: asking haiku…${RESET}" >&2
 HAIKU_RESP=$(claude --model haiku -p "Define '${QUERY}' in 2-4 sentences. Be precise and conversational. If it's a technical term, explain it so a smart non-expert understands. No preamble, just the definition." 2>/dev/null)
 if [[ -n "$HAIKU_RESP" ]]; then
   echo ""
