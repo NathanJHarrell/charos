@@ -1,0 +1,108 @@
+// CHAROS Human Dock — waybar config
+// A tiny panel with Nate-friendly shortcuts, a clock, and status.
+// Not a full desktop bar. Just the right amount of human surface.
+{
+  "layer": "top",
+  "position": "bottom",
+  "height": 36,
+  "spacing": 8,
+  "margin-left": 280,
+  "margin-right": 280,
+  "margin-bottom": 4,
+
+  "modules-left": [
+    "custom/firefox",
+    "custom/note",
+    "custom/home",
+    "custom/htop",
+    "custom/anchor"
+  ],
+
+  "modules-center": [
+    "clock"
+  ],
+
+  "modules-right": [
+    "custom/tc-new",
+    "custom/grind",
+    "battery",
+    "pulseaudio"
+  ],
+
+  // ── Left: App launchers ────────────────────────────────────────────
+
+  "custom/firefox": {
+    "format": "🦊",
+    "tooltip": "Firefox",
+    "on-click": "firefox"
+  },
+
+  "custom/note": {
+    "format": "📝",
+    "tooltip": "New note → ~/Manor/Nathan/inbox",
+    "on-click": "note"
+  },
+
+  "custom/home": {
+    "format": "🏠",
+    "tooltip": "Home → ~/Manor/Nathan",
+    "on-click": "foot -- bash -c 'cd ~/Manor/Nathan && exec bash'"
+  },
+
+  "custom/htop": {
+    "format": "📊",
+    "tooltip": "htop (data porn)",
+    "on-click": "foot --app-id=htop-dock -- htop"
+  },
+
+  "custom/anchor": {
+    "format": "⚓",
+    "tooltip": "Anchor",
+    "on-click": "firefox https://localhost:3000"
+  },
+
+  // ── Center: Clock ──────────────────────────────────────────────────
+
+  "clock": {
+    "format": "{:%a %b %d  %I:%M %p}",
+    "tooltip-format": "{:%A, %B %d, %Y\n%I:%M:%S %p}",
+    "interval": 60
+  },
+
+  // ── Right: TC + System ─────────────────────────────────────────────
+
+  "custom/tc-new": {
+    "format": "🔥",
+    "tooltip": "Summon new TC drawer",
+    "on-click": "tc-drawer"
+  },
+
+  "custom/grind": {
+    "format": "⚡",
+    "tooltip": "GRIND terminal",
+    "on-click": "grind-drawer"
+  },
+
+  "battery": {
+    "format": "{icon} {capacity}%",
+    "format-icons": ["", "", "", "", ""],
+    "format-charging": "⚡ {capacity}%",
+    "tooltip-format": "{timeTo}\n{power} W",
+    "states": {
+      "warning": 20,
+      "critical": 10
+    }
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "🔇",
+    "format-icons": {
+      "default": ["🔈", "🔉", "🔊"]
+    },
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-scroll-up": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+",
+    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
+    "tooltip-format": "{desc}: {volume}%"
+  }
+}

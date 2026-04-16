@@ -1,0 +1,72 @@
+/* CHAROS Human Dock — waybar stylesheet
+ * Ember on charcoal. Floating pill shape. Minimal. */
+
+* {
+  font-family: "JetBrains Mono Nerd Font", monospace;
+  font-size: 13px;
+  color: #e0e0e0;
+}
+
+window#waybar {
+  background: rgba(26, 26, 26, 0.85);
+  border-radius: 18px;
+  border: 1px solid #333333;
+}
+
+/* All modules get consistent padding */
+#custom-firefox,
+#custom-note,
+#custom-home,
+#custom-htop,
+#custom-anchor,
+#custom-tc-new,
+#custom-grind,
+#clock,
+#battery,
+#pulseaudio {
+  padding: 0 12px;
+  margin: 2px 2px;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+
+/* Hover glow — ember accent */
+#custom-firefox:hover,
+#custom-note:hover,
+#custom-home:hover,
+#custom-htop:hover,
+#custom-anchor:hover,
+#custom-tc-new:hover,
+#custom-grind:hover {
+  background: rgba(255, 89, 0, 0.25);
+}
+
+/* Clock — center, slightly brighter */
+#clock {
+  color: #ff7a33;
+  font-weight: bold;
+}
+
+/* Battery states */
+#battery {
+  color: #66cc88;
+}
+#battery.warning {
+  color: #cca000;
+}
+#battery.critical {
+  color: #cc4444;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0.5; }
+}
+
+/* Volume */
+#pulseaudio {
+  color: #aaaaaa;
+}
+#pulseaudio.muted {
+  color: #555555;
+}

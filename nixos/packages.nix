@@ -61,6 +61,7 @@
     ripgrep              # Fast search
     fd                   # Fast file find (fzf integration)
     glow                 # Terminal markdown reader
+    waybar               # Human dock — clickable icons + clock + status
     htop
     neofetch             # CHAROS system info on launch
     lm_sensors           # CPU temps (sensors command — Ryzen 9700X Tctl)

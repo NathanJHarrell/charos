@@ -14,6 +14,11 @@ gaps outer 0
 # Pure charcoal. TC's color.
 output * bg #1a1a1a solid_color
 
+# ── Human Dock (waybar) ───────────────────────────────────────────────────
+# Floating pill at the bottom with Nate-friendly shortcuts, clock, battery,
+# volume. Not a full desktop bar — just the right amount of human surface.
+exec_always waybar -c ~/.config/waybar/config.jsonc -s ~/.config/waybar/style.css
+
 # ── Boot: CHAROS desktop ──────────────────────────────────────────────────
 # The default boot state is a 2x2 grid of foot terminals (the "control room")
 # with a separate tc-spawn'd drawer hidden in the scratchpad, summonable by
