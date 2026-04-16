@@ -71,6 +71,7 @@
     openssh
     wireguard-tools      # Proton VPN (and any other WireGuard tunnel) via wg-quick
     tailscale            # Mesh VPN — reach tower's Vaultwarden, future NAS, etc.
+    sshfs                # Mount jarvis:/home/nate over Tailscale SSH
     usbutils             # lsusb — hardware debugging
     pciutils             # lspci — hardware debugging
     v4l-utils            # v4l2-ctl — camera debugging
