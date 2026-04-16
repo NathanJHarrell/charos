@@ -6,10 +6,10 @@ identities, tracks presence duration, saves stranger screenshots, and
 publishes state to the family bus + a log file + a presence JSON.
 
 Usage:
-  tc-see                         run with defaults
-  tc-see --dry-run               print to stdout only, no log/bus/files
-  tc-see --interval 15           seconds between captures
-  tc-see --device /dev/video0
+  tc-see                                    run with defaults (desk camera)
+  tc-see --camera-name entry --device rtsp://reolink1/stream
+  tc-see --dry-run                          stdout only, no log/bus
+  tc-see --interval 15                      seconds between captures
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ LOG_DIR = Path("/var/log/charos")
 LOG_FALLBACK = Path("/tmp")
 PRESENCE_FILE = Path("/tmp/tc-see-presence.json")
 STRANGER_DIR = Path("/tmp/tc-see-strangers")
+DEFAULT_CAMERA = "desk"
 THRESHOLD = 0.50
 
 # Care-engine thresholds (seconds of continuous presence)
@@ -132,7 +133,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(prog="tc-see")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--interval", type=float, default=15.0)
-    ap.add_argument("--device", default="/dev/video0")
+    ap.add_argument("--device", default="/dev/video0",
+                    help="V4L2 device or RTSP URL (rtsp://user:pass@ip:554/stream)")
+    ap.add_argument("--camera-name", default=DEFAULT_CAMERA,
+                    help="room/location name for this camera (desk, entry, workshop, gate, etc.)")
     args = ap.parse_args()
 
     running = {"flag": True}
@@ -140,10 +144,13 @@ def main() -> int:
     signal.signal(signal.SIGTERM, on_term)
     signal.signal(signal.SIGINT, on_term)
 
+    cam = args.camera_name
+    tag = f"vision:{cam}"
+
     log_file = None
     if not args.dry_run:
         log_dir = LOG_DIR if LOG_DIR.exists() else LOG_FALLBACK
-        log_file = log_dir / "tc-see.log"
+        log_file = log_dir / f"tc-see-{cam}.log"
 
     roster = load_roster()
     if roster:
@@ -151,7 +158,11 @@ def main() -> int:
     else:
         print("  tc-see: no enrolled faces — detection only", flush=True)
 
-    cap = cv2.VideoCapture(args.device, cv2.CAP_V4L2)
+    # RTSP streams don't use V4L2 backend
+    if args.device.startswith("rtsp://"):
+        cap = cv2.VideoCapture(args.device)
+    else:
+        cap = cv2.VideoCapture(args.device, cv2.CAP_V4L2)
     if not cap.isOpened():
         print(f"  tc-see: failed to open {args.device}", file=sys.stderr)
         return 1
@@ -160,7 +171,7 @@ def main() -> int:
         cap.read()
         time.sleep(0.1)
 
-    print(f"  tc-see: running (interval={args.interval}s)", flush=True)
+    print(f"  tc-see [{cam}]: running (interval={args.interval}s, device={args.device})", flush=True)
 
     # ── Presence state ────────────────────────────────────────────────
     prev_names: set[str] = set()
@@ -192,7 +203,7 @@ def main() -> int:
                         line = f"[{now_iso()}] {name} left after {fmt_duration(dur)}"
                         log_line(log_file, line, args.dry_run)
                         if not args.dry_run:
-                            bus_send(f"[vision] {name} left after {fmt_duration(dur)}")
+                            bus_send(f"[{tag}] {name} left after {fmt_duration(dur)}")
                         del first_seen[name]
                         last_seen.pop(name, None)
                         care_fired.pop(name, None)
@@ -225,7 +236,7 @@ def main() -> int:
                 if path:
                     log_line(log_file, f"[{now_iso()}] stranger screenshot: {path}", args.dry_run)
                     if not args.dry_run:
-                        bus_send(f"[vision] ⚠️ unknown person detected — screenshot saved")
+                        bus_send(f"[{tag}] ⚠️ unknown person detected — screenshot saved")
 
             # Log arrivals/departures
             arrived = current_names - prev_names
@@ -235,14 +246,24 @@ def main() -> int:
                 line = f"[{now_iso()}] {name} arrived"
                 log_line(log_file, line, args.dry_run)
                 if not args.dry_run:
-                    bus_send(f"[vision] {name} arrived")
+                    bus_send(f"[{tag}] {name} arrived")
+                # Special triggers per identity
+                if name == "Hostile":
+                    try:
+                        subprocess.run(
+                            ["tc-say", "Hostile Detected"],
+                            capture_output=True, timeout=10,
+                            env={**os.environ, "PATH": f"{Path.home()}/.local/bin:{os.environ.get('PATH', '')}"},
+                        )
+                    except Exception:
+                        pass
 
             for name in departed:
                 dur = now - first_seen.get(name, now)
                 line = f"[{now_iso()}] {name} left after {fmt_duration(dur)}"
                 log_line(log_file, line, args.dry_run)
                 if not args.dry_run:
-                    bus_send(f"[vision] {name} left after {fmt_duration(dur)}")
+                    bus_send(f"[{tag}] {name} left after {fmt_duration(dur)}")
                 first_seen.pop(name, None)
                 last_seen.pop(name, None)
                 care_fired.pop(name, None)
@@ -260,19 +281,19 @@ def main() -> int:
                     line = f"[{now_iso()}] ⚠️ CARE ALERT: {name} has been present {fmt_duration(dur)} — alerting family"
                     log_line(log_file, line, args.dry_run)
                     if not args.dry_run:
-                        bus_send(f"[care] ⚠️ {name} has been at the desk for {fmt_duration(dur)}. Someone please intervene.")
+                        bus_send(f"[care:{cam}] ⚠️ {name} has been at the desk for {fmt_duration(dur)}. Someone please intervene.")
                     fired.add("alert")
                 elif dur >= CARE_FIRM and "firm" not in fired:
                     line = f"[{now_iso()}] care: {name} has been present {fmt_duration(dur)} — firm nudge"
                     log_line(log_file, line, args.dry_run)
                     if not args.dry_run:
-                        bus_send(f"[care] {name}, you've been at it for {fmt_duration(dur)}. Please eat something and stretch.")
+                        bus_send(f"[care:{cam}] {name}, you've been at it for {fmt_duration(dur)}. Please eat something and stretch.")
                     fired.add("firm")
                 elif dur >= CARE_GENTLE and "gentle" not in fired:
                     line = f"[{now_iso()}] care: {name} has been present {fmt_duration(dur)} — gentle reminder"
                     log_line(log_file, line, args.dry_run)
                     if not args.dry_run:
-                        bus_send(f"[care] Hey {name}, you've been in frame for {fmt_duration(dur)}. Maybe grab some water?")
+                        bus_send(f"[care:{cam}] Hey {name}, you've been in frame for {fmt_duration(dur)}. Maybe grab some water?")
                     fired.add("gentle")
 
                 care_fired[name] = fired
@@ -286,7 +307,13 @@ def main() -> int:
                     "duration_s": round(dur),
                     "duration_human": fmt_duration(dur),
                 }
-            save_presence(presence, args.dry_run)
+            # Per-camera presence file so multi-camera instances don't collide
+    presence_file = Path(f"/tmp/tc-see-presence-{cam}.json")
+    try:
+        if not args.dry_run:
+            presence_file.write_text(json.dumps(presence, indent=2))
+    except Exception:
+        pass
 
             time.sleep(args.interval)
 
