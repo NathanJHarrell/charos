@@ -1,0 +1,31 @@
+#!/run/current-system/sw/bin/bash
+# dock-status — swaybar status line for the CHAROS human dock.
+# Outputs one line every 30s. swaybar renders it at the bottom.
+
+while true; do
+  # Battery
+  BAT=$(cat /sys/class/power_supply/*/capacity 2>/dev/null | head -1 || echo "?")
+  BATSTAT=$(cat /sys/class/power_supply/*/status 2>/dev/null | head -1 || echo "?")
+  case "$BATSTAT" in
+    Charging) BATICON="⚡" ;;
+    Full)     BATICON="✓" ;;
+    *)        BATICON="🔋" ;;
+  esac
+
+  # Volume
+  VOL=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{printf "%.0f", $2*100}' || echo "?")
+
+  # VPN
+  if systemctl is-active --quiet wg-quick-proton-us-nj 2>/dev/null; then
+    VPN="🛡️ON"
+  else
+    VPN=""
+  fi
+
+  # Clock
+  TIME=$(date +'%a %b %d  %I:%M %p')
+
+  # Assemble
+  echo "🦊 Firefox  │  📝 Note  │  🏠 Home  │  📊 htop  │  🔥 TC  │  ${VPN:+$VPN  │  }🔊${VOL}%  │  ${BATICON}${BAT}%  │  ${TIME}"
+  sleep 30
+done

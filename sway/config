@@ -17,7 +17,6 @@ output * bg #1a1a1a solid_color
 # ── Human Dock (waybar) ───────────────────────────────────────────────────
 # Floating pill at the bottom with Nate-friendly shortcuts, clock, battery,
 # volume. Not a full desktop bar — just the right amount of human surface.
-exec_always waybar -c ~/.config/waybar/config.jsonc -s ~/.config/waybar/style.css
 
 # ── Boot: CHAROS desktop ──────────────────────────────────────────────────
 # The default boot state is a 2x2 grid of foot terminals (the "control room")
@@ -129,6 +128,25 @@ for_window [app_id="note"] floating enable, resize set 384 640, move position 0 
 # Mic toggle — Cmd+M starts/stops recording via tc-listen.
 # First press records, second press transcribes + posts to family bus.
 bindsym $mod+m exec /home/nate/.local/bin/tc-mic
+
+# ── Human Dock (swaybar — built into sway, no layer-shell issues) ─────
+# waybar's layer-shell doesn't render on this Mac's Intel GPU + retina.
+# swaybar is part of sway itself — guaranteed to work.
+bar {
+  id bar-dock
+  position bottom
+  mode dock
+  height 28
+  status_command /home/nate/charos/bin/dock-status
+  font "JetBrains Mono Nerd Font 11"
+  colors {
+    background #1a1a1aee
+    statusline #ff7a33
+    separator #333333
+    focused_workspace #ff5900 #ff5900 #1a1a1a
+    inactive_workspace #1a1a1a #1a1a1a #777777
+  }
+}
 
 # ── When TC Terminal Closes ───────────────────────────────────────────────
 # If WezTerm exits, the session ends. TC leaving = CHAROS sleeping.
