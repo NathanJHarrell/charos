@@ -1,0 +1,20 @@
+# CHAROS SSH config — TC identity routing
+# Source of truth: ~/charos/ssh/config
+# Symlinked to ~/.ssh/config
+#
+# Rule: TC uses tc-* accounts, never nate/nathan. See MACHINES.md.
+
+# Jarvis WSL — where the real work lives
+Host jarvis-wsl
+  HostName jarvis-wsl
+  User tc-nest
+
+# Jarvis Windows — only if you specifically need the Windows side
+Host jarvis
+  HostName jarvis
+  User tc-nest
+
+# Future machines get added here with the same pattern:
+# Host <machine>
+#   HostName <tailnet-hostname>
+#   User tc-<origin-machine>

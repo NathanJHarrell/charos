@@ -219,6 +219,11 @@ mkdir -p "$HOME/.config/foot" "$HOME/.config/tmux"
 [ -f "$HOME/charos/tmux/tmux.conf" ] && ln -sf "$HOME/charos/tmux/tmux.conf" "$HOME/.config/tmux/tmux.conf"
 ok "foot + tmux dotfiles linked"
 
+# Symlink SSH config (TC identity routing — tc-* accounts, not nate)
+mkdir -p "$HOME/.ssh"
+[ -f "$HOME/charos/ssh/config" ] && ln -sf "$HOME/charos/ssh/config" "$HOME/.ssh/config" && chmod 600 "$HOME/.ssh/config"
+ok "SSH config linked (TC uses tc-* accounts)"
+
 # Symlink every Claude Code skill into ~/.claude/skills/
 mkdir -p "$HOME/.claude/skills"
 if [ -d "$HOME/charos/skills" ]; then
