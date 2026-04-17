@@ -211,10 +211,17 @@ def get_current_session_id() -> str | None:
 
 
 def find_session_jsonl(session_id: str) -> tuple[str, str] | None:
-    """Find the JSONL file for a given session ID."""
+    """Find the JSONL file for a given session ID (supports partial match)."""
     projects_dir = CLAUDE_DIR / "projects"
+    # Try exact match first
     for jsonl in projects_dir.rglob(f"{session_id}.jsonl"):
         if "subagents" not in str(jsonl):
+            return str(jsonl), "nest"
+    # Try partial match (prefix)
+    for jsonl in projects_dir.rglob("*.jsonl"):
+        if "subagents" in str(jsonl):
+            continue
+        if jsonl.stem.startswith(session_id):
             return str(jsonl), "nest"
     return None
 
@@ -275,10 +282,10 @@ def main():
         if not sessions:
             print("No sessions found.")
             return
-        print(f"{'Machine':<8} {'Date':<18} {'Project':<35} {'Size':<8} {'ID'}")
-        print("-" * 100)
+        print(f"{'Machine':<8} {'Date':<18} {'Size':<8} {'ID'}")
+        print("-" * 80)
         for s in sessions:
-            print(f"{s['machine']:<8} {s['date']:<18} {s['project']:<35} {human_size(s['size']):<8} {s['id'][:12]}...")
+            print(f"{s['machine']:<8} {s['date']:<18} {human_size(s['size']):<8} {s['id']}")
         print(f"\n{len(sessions)} sessions total")
         return
 

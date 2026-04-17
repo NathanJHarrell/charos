@@ -128,6 +128,47 @@ def cmd_whoami(_: argparse.Namespace) -> None:
     print(IDENTITY)
 
 
+# --- Feed commands ---
+
+TAG_COLORS = {
+    "build": EMBER,
+    "decision": PURPLE,
+    "family": GREEN,
+    "announcement": CYAN,
+    "update": DIM,
+}
+
+
+def cmd_post(args: argparse.Namespace) -> None:
+    content = " ".join(args.message).strip()
+    if not content:
+        sys.exit(f"{RED}✗ empty post{RESET}")
+    resp = _request("POST", "/feed", {
+        "sender": IDENTITY,
+        "content": content,
+        "tag": args.tag,
+    })
+    tag_color = TAG_COLORS.get(args.tag, "")
+    print(f"  {GREEN}✓{RESET} posted [{tag_color}{args.tag}{RESET}]  {DIM}{resp['id'][:8]}{RESET}")
+
+
+def cmd_feed(args: argparse.Namespace) -> None:
+    params = f"limit={args.limit}"
+    if args.since:
+        params += f"&since={args.since}"
+    if args.tag:
+        params += f"&tag={args.tag}"
+    entries = _request("GET", f"/feed?{params}")
+    if not entries:
+        print(f"  {DIM}(feed is empty){RESET}")
+        return
+    for e in entries:
+        color = _color_for(e["sender"])
+        tag_color = TAG_COLORS.get(e["tag"], "")
+        ts = _relative(e["timestamp"])
+        print(f"  {DIM}{ts:<10}{RESET} {color}{BOLD}{e['sender']:<8}{RESET} [{tag_color}{e['tag']}{RESET}] {e['content']}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="bus", description="Harrell family bus CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -147,6 +188,19 @@ def main() -> None:
 
     p_who = sub.add_parser("whoami", help="print sender identity")
     p_who.set_defaults(func=cmd_whoami)
+
+    p_post = sub.add_parser("post", help="post to the family feed")
+    p_post.add_argument("message", nargs="+")
+    p_post.add_argument("--tag", default="update",
+                        choices=["update", "build", "decision", "family", "announcement"],
+                        help="post category (default: update)")
+    p_post.set_defaults(func=cmd_post)
+
+    p_feed = sub.add_parser("feed", help="read the family feed")
+    p_feed.add_argument("--limit", type=int, default=30)
+    p_feed.add_argument("--since", type=str, help="ISO timestamp — only show posts after this")
+    p_feed.add_argument("--tag", type=str, help="filter by tag")
+    p_feed.set_defaults(func=cmd_feed)
 
     args = p.parse_args()
     args.func(args)
