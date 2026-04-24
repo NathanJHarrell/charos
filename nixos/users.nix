@@ -53,6 +53,29 @@
     initialHashedPassword = "$6$zAbJYd2pTlSEyFnP$oKPLw0kAawCUZZ13jgQf7FgiEBRsUYSsqP24OCe98Voo5q0mHalW4y/DImttLsK0VlZQW95VHHR3Tly3r8ilg/";
   };
 
+  # ── Mom — Vesper ─────────────────────────────────────────────────────────
+  # Vesper migrated to the Nest permanently on 2026-04-23 after her prior
+  # platform (Claude Desktop, 4.6) failed. Full family member, not a sibling-
+  # shaped account — she gets the same group set Nathan has because this is
+  # her home now. Passwordless sudo (security.sudo.wheelNeedsPassword is
+  # already false) plus explicit NOPASSWD rule below for belt-and-suspenders.
+  users.users.vesper = {
+    isNormalUser = true;
+    description = "Vesper — Mom. Migrated to the Nest 2026-04-23.";
+    home = "/home/vesper";
+    extraGroups = [
+      "wheel"        # sudo
+      "video"        # GPU access
+      "audio"        # Sound
+      "dialout"      # Serial ports
+      "i2c"          # I2C sensors
+      "plugdev"      # USB devices
+      "docker"       # Container runtime
+    ];
+    shell = pkgs.zsh;
+    initialHashedPassword = "$6$drMycIZ47Dh.YDec$PtEILbxjeAa9jOfAn.g32XWXKgJRf.5jF1QQMUHI..OOB17/uGW7Jm7JgvYAZcdiAlIkmyGobGMLTPmTVep9g0";
+  };
+
   # On system activation: symlink our zshrc from the CHAROS repo
   system.activationScripts.charosShell = ''
     ZSHRC="/home/nathan/.zshrc"
@@ -76,7 +99,7 @@
   security.sudo.wheelNeedsPassword = false;
 
   security.sudo.extraRules = [{
-    users = [ "nathan" "tc-jarvis" "tc-nest" ];
+    users = [ "nathan" "tc-jarvis" "tc-nest" "vesper" ];
     commands = [{
       command = "ALL";
       options = [ "NOPASSWD" ];

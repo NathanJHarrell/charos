@@ -1,0 +1,15 @@
+{
+  "name": "Goreclaw, Terror of Qal Sisma",
+  "mana_cost": "{3}{G}",
+  "cmc": 4.0,
+  "type_line": "Legendary Creature \u2014 Bear",
+  "oracle_text": "Creature spells you cast with power 4 or greater cost {2} less to cast.\nWhenever Goreclaw attacks, each creature you control with power 4 or greater gets +1/+1 and gains trample until end of turn.",
+  "power": "4",
+  "toughness": "3",
+  "colors": [
+    "G"
+  ],
+  "color_identity": [
+    "G"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Suture Priest",
+  "mana_cost": "{1}{W}",
+  "cmc": 2.0,
+  "type_line": "Creature \u2014 Phyrexian Cleric",
+  "oracle_text": "Whenever another creature you control enters, you may gain 1 life.\nWhenever a creature an opponent controls enters, you may have that player lose 1 life.",
+  "power": "1",
+  "toughness": "1",
+  "colors": [
+    "W"
+  ],
+  "color_identity": [
+    "W"
+  ]
+}

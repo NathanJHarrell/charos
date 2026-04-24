@@ -127,7 +127,9 @@ bindsym $mod+d exec /home/nate/.local/bin/desktop-grid
 
 # Note drawer — `note` CLI opens a new vim on ~/Manor/Nathan/inbox/<stamp>.md
 # as a left-anchored floating drawer. Close vim, drawer closes with it.
+# Cmd+N — quick capture. Seeds with the Evergreen template.
 for_window [app_id="note"] floating enable, resize set 384 640, move position 0 80
+bindsym $mod+n exec /home/nate/.local/bin/note-toggle
 
 # Mic toggle — Cmd+M starts/stops recording via tc-listen.
 # First press records, second press transcribes + posts to family bus.

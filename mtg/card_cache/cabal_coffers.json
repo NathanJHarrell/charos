@@ -1,0 +1,13 @@
+{
+  "name": "Cabal Coffers",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Land",
+  "oracle_text": "{2}, {T}: Add {B} for each Swamp you control.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": [
+    "B"
+  ]
+}

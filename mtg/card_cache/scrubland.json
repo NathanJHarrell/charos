@@ -1,0 +1,14 @@
+{
+  "name": "Scrubland",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Land \u2014 Plains Swamp",
+  "oracle_text": "({T}: Add {W} or {B}.)",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": [
+    "B",
+    "W"
+  ]
+}

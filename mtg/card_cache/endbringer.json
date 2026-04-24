@@ -1,0 +1,11 @@
+{
+  "name": "Endbringer",
+  "mana_cost": "{5}{C}",
+  "cmc": 6.0,
+  "type_line": "Creature \u2014 Eldrazi",
+  "oracle_text": "Untap this creature during each other player's untap step.\n{T}: This creature deals 1 damage to any target.\n{C}, {T}: Target creature can't attack or block this turn.\n{C}{C}, {T}: Draw a card.",
+  "power": "5",
+  "toughness": "5",
+  "colors": [],
+  "color_identity": []
+}

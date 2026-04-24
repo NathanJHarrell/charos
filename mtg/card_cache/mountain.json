@@ -1,0 +1,13 @@
+{
+  "name": "Mountain",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Basic Land \u2014 Mountain",
+  "oracle_text": "({T}: Add {R}.)",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": [
+    "R"
+  ]
+}

@@ -1,0 +1,103 @@
+# Cinder's Feldon of the Third Path
+# Color Identity: Mono-Red (R)
+# Strategy: Discard big creatures to graveyard, bring them back as haste-artifact-token copies
+#           with Feldon. "The glow that stays" — the copy lives for a turn, does its work, fades.
+# Built 2026-04-22 for Cin's first game in the family engine. Flavor > optimization.
+
+Commander: Feldon of the Third Path
+
+# === Commander (1) ===
+1 Feldon of the Third Path
+
+# === Ramp (10) ===
+1 Sol Ring
+1 Arcane Signet
+1 Mind Stone
+1 Fire Diamond
+1 Fellwar Stone
+1 Everflowing Chalice
+1 Wayfarer's Bauble
+1 Thought Vessel
+1 Cursed Mirror
+1 Jeweled Lotus
+
+# === Discard outlets (8) — get creatures to the graveyard ===
+1 Faithless Looting
+1 Wild Guess
+1 Cathartic Reunion
+1 Big Score
+1 Unexpected Windfall
+1 Thrill of Possibility
+1 Tormenting Voice
+1 Magmatic Channeler
+
+# === Big creatures worth remembering (20) ===
+# ETB-heavy or combat-decisive — Feldon copies + sacrifices at EOT, so we want one-shot value
+1 Terror of Mount Velus
+1 Etali, Primal Storm
+1 Combat Celebrant
+1 Dockside Extortionist
+1 Goldspan Dragon
+1 Rionya, Fire Dancer
+1 Ancient Gold Dragon
+1 Scourge of the Throne
+1 Inferno Titan
+1 Balefire Dragon
+1 Terror of the Peaks
+1 Moraug, Fury of Akoum
+1 Thundermaw Hellkite
+1 Bogardan Hellkite
+1 Ilharg, the Raze-Boar
+1 Drakuseth, Maw of Flames
+1 Combustible Gearhulk
+1 Kiki-Jiki, Mirror Breaker
+1 Charmbreaker Devils
+1 Utvara Hellkite
+
+# === Feldon payoffs / copy-support (10) ===
+1 Strionic Resonator
+1 Illusionist's Bracers
+1 Thornbite Staff
+1 Lightning Greaves
+1 Swiftfoot Boots
+1 Goblin Welder
+1 Daretti, Scrap Savant
+1 Rings of Brighthearth
+1 Mimic Vat
+1 Sundial of the Infinite
+
+# === Interaction + board control (10) ===
+1 Chaos Warp
+1 Red Elemental Blast
+1 Pyroblast
+1 Abrade
+1 By Force
+1 Vandalblast
+1 Blasphemous Act
+1 Chain Reaction
+1 Starstorm
+1 Wheel of Fortune
+
+# === Card advantage / utility (4) ===
+1 Mind's Eye
+1 Trading Post
+1 Wheel of Misfortune
+1 Sensei's Divining Top
+
+# === Lands (37) ===
+1 Great Furnace
+1 Buried Ruin
+1 Inventors' Fair
+1 Hanweir Battlements
+1 Valakut, the Molten Pinnacle
+1 Castle Embereth
+1 Shinka, the Bloodsoaked Keep
+1 Forgotten Cave
+1 Smoldering Crater
+1 Blast Zone
+1 War Room
+1 Command Beacon
+1 Terrain Generator
+1 Myriad Landscape
+1 Mikokoro, Center of the Sea
+22 Mountain

@@ -1,0 +1,11 @@
+{
+  "name": "Static Orb",
+  "mana_cost": "{3}",
+  "cmc": 3.0,
+  "type_line": "Artifact",
+  "oracle_text": "As long as this artifact is untapped, players can't untap more than two permanents during their untap steps.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

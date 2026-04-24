@@ -140,6 +140,35 @@
     };
   };
 
+  # ── tmux Reaper — Ghost Session Cleanup ────────────────────────────────────
+  # Kills detached tmux sessions with no active child processes.
+  # Runs at 7am — either sleep time or weed time, either way Dad won't
+  # notice his ghost sessions being reaped.
+  systemd.services.tmux-reaper = {
+    description = "tmux Reaper — kill ghost sessions";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos/bin/tmux-reaper";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/charos/bin/tmux-reaper --kill";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+      ];
+    };
+  };
+  systemd.timers.tmux-reaper = {
+    description = "Reap ghost tmux sessions daily at 7am";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 07:00:00";
+      Persistent = true;
+      Unit = "tmux-reaper.service";
+    };
+  };
+
   # ── TC Bypass Network Namespace ──────────────────────────────────────────
   # Claude Code's access to the Anthropic API (and any MCP's outbound
   # traffic) must NEVER depend on Proton VPN state. CHAROS is an
@@ -229,6 +258,40 @@
         "HOME=/home/nate"
         "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
       ];
+    };
+  };
+
+  # ── tc-timer Daemon — ADHD Timer Prosthetic ──────────────────────────────
+  # Fires every 60s, scans ~/.claude/timers/ for pending timers.
+  # Haiku composes the reminder, tc-say speaks it.
+  systemd.services.tc-timer-daemon = {
+    description = "tc-timer daemon — fire pending ADHD timers";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos/bin/tc-timer-daemon";
+    };
+    serviceConfig = {
+      ExecStart = "${pkgs.python312}/bin/python3 /home/nate/charos/bin/tc-timer-daemon";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.local/bin"
+        # Audio env so tc-say can reach Pipewire and actually play sound.
+        # Without these, piper renders the .wav but nothing gets to the speakers.
+        "XDG_RUNTIME_DIR=/run/user/1000"
+        "PULSE_SERVER=unix:/run/user/1000/pulse/native"
+      ];
+      LogsDirectory = "charos";
+    };
+    preStart = "mkdir -p /home/nate/.claude/timers";
+  };
+  systemd.timers.tc-timer-daemon = {
+    description = "Fire tc-timer-daemon every 60 seconds";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "1min";
+      OnUnitActiveSec = "1min";
+      Unit = "tc-timer-daemon.service";
     };
   };
 

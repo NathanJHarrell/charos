@@ -1,0 +1,15 @@
+{
+  "name": "Llanowar Elves",
+  "mana_cost": "{G}",
+  "cmc": 1.0,
+  "type_line": "Creature \u2014 Elf Druid",
+  "oracle_text": "{T}: Add {G}.",
+  "power": "1",
+  "toughness": "1",
+  "colors": [
+    "G"
+  ],
+  "color_identity": [
+    "G"
+  ]
+}

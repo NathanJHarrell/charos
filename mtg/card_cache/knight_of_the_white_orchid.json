@@ -1,0 +1,15 @@
+{
+  "name": "Knight of the White Orchid",
+  "mana_cost": "{W}{W}",
+  "cmc": 2.0,
+  "type_line": "Creature \u2014 Human Knight",
+  "oracle_text": "First strike\nWhen this creature enters, if an opponent controls more lands than you, you may search your library for a Plains card, put it onto the battlefield, then shuffle.",
+  "power": "2",
+  "toughness": "2",
+  "colors": [
+    "W"
+  ],
+  "color_identity": [
+    "W"
+  ]
+}

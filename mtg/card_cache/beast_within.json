@@ -1,0 +1,15 @@
+{
+  "name": "Beast Within",
+  "mana_cost": "{2}{G}",
+  "cmc": 3.0,
+  "type_line": "Instant",
+  "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "G"
+  ],
+  "color_identity": [
+    "G"
+  ]
+}

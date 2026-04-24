@@ -1,0 +1,64 @@
+#!/run/current-system/sw/bin/bash
+# svg-trace — convert a PNG/JPG image into a laser-ready SVG silhouette.
+#
+# Pipeline: input image → grayscale → threshold → BMP → potrace → SVG
+#
+# Usage:
+#   svg-trace input.png                    output to input.svg
+#   svg-trace input.png output.svg         explicit output path
+#   svg-trace input.png -t 128             custom threshold (0-255, default 128)
+#   svg-trace input.png --invert           invert B/W (light subject on dark bg)
+#
+# For laser cutting: simpler = better. High-contrast silhouettes trace cleanly.
+# Complex photographic images will need manual cleanup in Inkscape.
+
+set -uo pipefail
+
+THRESHOLD=128
+INVERT=""
+INPUT=""
+OUTPUT=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -t|--threshold) THRESHOLD="$2"; shift 2 ;;
+    --invert) INVERT="-negate"; shift ;;
+    -h|--help)
+      sed -n '2,12p' "$0" | sed 's/^# \?//'
+      exit 0 ;;
+    *)
+      if [ -z "$INPUT" ]; then INPUT="$1"
+      elif [ -z "$OUTPUT" ]; then OUTPUT="$1"
+      fi
+      shift ;;
+  esac
+done
+
+if [ -z "$INPUT" ]; then
+  echo "Usage: svg-trace <input.png> [output.svg] [-t threshold] [--invert]" >&2
+  exit 1
+fi
+
+[ -z "$OUTPUT" ] && OUTPUT="${INPUT%.*}.svg"
+TMP_BMP=$(mktemp /tmp/svg-trace-XXXXXX.bmp)
+
+echo "  input:     $INPUT"
+echo "  output:    $OUTPUT"
+echo "  threshold: $THRESHOLD"
+echo "  invert:    ${INVERT:-no}"
+
+# Convert to high-contrast B/W BMP
+convert "$INPUT" -colorspace Gray $INVERT -threshold "${THRESHOLD}%" "$TMP_BMP" 2>&1
+echo "  converted to B/W bitmap"
+
+# Trace to SVG
+potrace "$TMP_BMP" -s -o "$OUTPUT" --tight 2>&1
+echo "  traced → $OUTPUT"
+
+rm -f "$TMP_BMP"
+
+# Stats
+SIZE=$(wc -c < "$OUTPUT")
+PATHS=$(grep -c '<path' "$OUTPUT" 2>/dev/null || echo 0)
+echo "  size: ${SIZE} bytes, ${PATHS} path(s)"
+echo "  ✓ done — open with: imv $OUTPUT  or  firefox file://$OUTPUT"

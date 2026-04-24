@@ -1,0 +1,15 @@
+{
+  "name": "Damnation",
+  "mana_cost": "{2}{B}{B}",
+  "cmc": 4.0,
+  "type_line": "Sorcery",
+  "oracle_text": "Destroy all creatures. They can't be regenerated.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "B"
+  ],
+  "color_identity": [
+    "B"
+  ]
+}

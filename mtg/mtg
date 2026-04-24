@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# mtg — Drawercast Magic: The Gathering Commander engine CLI.
+# Thin shell wrapper around mtg_engine.py.
+exec python3 "$(dirname "$(readlink -f "$0")")/mtg_engine.py" "$@"

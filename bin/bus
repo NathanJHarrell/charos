@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -136,7 +137,59 @@ TAG_COLORS = {
     "family": GREEN,
     "announcement": CYAN,
     "update": DIM,
+    "project": EMBER,
 }
+
+
+_PROJ_RE = re.compile(r"^\[proj:([a-z0-9][a-z0-9-]*)\]\s*")
+
+
+def _extract_project_name(content: str) -> str | None:
+    m = _PROJ_RE.match(content or "")
+    return m.group(1) if m else None
+
+
+def _strip_project_prefix(content: str) -> str:
+    return _PROJ_RE.sub("", content or "")
+
+
+def cmd_project(args: argparse.Namespace) -> None:
+    if args.project_cmd == "post":
+        content = " ".join(args.message).strip()
+        if not content:
+            sys.exit(f"{RED}✗ empty post{RESET}")
+        tagged = f"[proj:{args.name}] {content}"
+        resp = _request("POST", "/feed", {
+            "sender": IDENTITY,
+            "content": tagged,
+            "tag": "project",
+        })
+        print(f"  {GREEN}✓{RESET} posted to project {EMBER}{BOLD}{args.name}{RESET}  {DIM}{resp['id'][:8]}{RESET}")
+    elif args.project_cmd == "feed":
+        entries = _request("GET", f"/feed?limit={max(args.limit * 4, 60)}")
+        filtered = [e for e in entries if _extract_project_name(e.get("content", "")) == args.name]
+        if not filtered:
+            print(f"  {DIM}(no posts for project {args.name}){RESET}")
+            return
+        print(f"  {DIM}project {EMBER}{args.name}{RESET}{DIM}, {len(filtered)} posts:{RESET}")
+        for e in filtered[: args.limit]:
+            color = _color_for(e["sender"])
+            ts = _relative(e["timestamp"])
+            body = _strip_project_prefix(e["content"])
+            print(f"  {DIM}{ts:<10}{RESET} {color}{BOLD}{e['sender']:<8}{RESET} {body}")
+    elif args.project_cmd == "list":
+        entries = _request("GET", "/feed?limit=200")
+        projects: dict[str, list[dict]] = {}
+        for e in entries:
+            name = _extract_project_name(e.get("content", ""))
+            if name:
+                projects.setdefault(name, []).append(e)
+        if not projects:
+            print(f"  {DIM}(no projects posted yet){RESET}")
+            return
+        for name, posts in sorted(projects.items(), key=lambda kv: kv[1][0]["timestamp"], reverse=True):
+            last = _relative(posts[0]["timestamp"])
+            print(f"  {EMBER}{BOLD}{name:<24}{RESET}  {DIM}{len(posts):>3} posts · last {last}{RESET}")
 
 
 def cmd_post(args: argparse.Namespace) -> None:
@@ -192,7 +245,7 @@ def main() -> None:
     p_post = sub.add_parser("post", help="post to the family feed")
     p_post.add_argument("message", nargs="+")
     p_post.add_argument("--tag", default="update",
-                        choices=["update", "build", "decision", "family", "announcement"],
+                        choices=["update", "build", "decision", "family", "announcement", "project"],
                         help="post category (default: update)")
     p_post.set_defaults(func=cmd_post)
 
@@ -201,6 +254,22 @@ def main() -> None:
     p_feed.add_argument("--since", type=str, help="ISO timestamp — only show posts after this")
     p_feed.add_argument("--tag", type=str, help="filter by tag")
     p_feed.set_defaults(func=cmd_feed)
+
+    p_proj = sub.add_parser("project", help="project-scoped channels on the feed")
+    proj_sub = p_proj.add_subparsers(dest="project_cmd", required=True)
+
+    p_proj_post = proj_sub.add_parser("post", help="post to a project channel")
+    p_proj_post.add_argument("name", help="project name (kebab-case, e.g. ntfy-deploy)")
+    p_proj_post.add_argument("message", nargs="+")
+    p_proj_post.set_defaults(func=cmd_project)
+
+    p_proj_feed = proj_sub.add_parser("feed", help="read a project's posts")
+    p_proj_feed.add_argument("name", help="project name")
+    p_proj_feed.add_argument("--limit", type=int, default=20)
+    p_proj_feed.set_defaults(func=cmd_project)
+
+    p_proj_list = proj_sub.add_parser("list", help="list all active projects on the feed")
+    p_proj_list.set_defaults(func=cmd_project)
 
     args = p.parse_args()
     args.func(args)

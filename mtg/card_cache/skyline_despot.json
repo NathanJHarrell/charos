@@ -1,0 +1,15 @@
+{
+  "name": "Skyline Despot",
+  "mana_cost": "{5}{R}{R}",
+  "cmc": 7.0,
+  "type_line": "Creature \u2014 Dragon",
+  "oracle_text": "Flying\nWhen this creature enters, you become the monarch.\nAt the beginning of your upkeep, if you're the monarch, create a 5/5 red Dragon creature token with flying.",
+  "power": "5",
+  "toughness": "5",
+  "colors": [
+    "R"
+  ],
+  "color_identity": [
+    "R"
+  ]
+}

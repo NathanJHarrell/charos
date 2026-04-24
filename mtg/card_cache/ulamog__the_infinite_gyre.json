@@ -1,0 +1,11 @@
+{
+  "name": "Ulamog, the Infinite Gyre",
+  "mana_cost": "{11}",
+  "cmc": 11.0,
+  "type_line": "Legendary Creature \u2014 Eldrazi",
+  "oracle_text": "When you cast this spell, destroy target permanent.\nIndestructible\nAnnihilator 4 (Whenever this creature attacks, defending player sacrifices four permanents of their choice.)\nWhen Ulamog is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.",
+  "power": "10",
+  "toughness": "10",
+  "colors": [],
+  "color_identity": []
+}

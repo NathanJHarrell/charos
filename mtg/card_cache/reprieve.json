@@ -1,0 +1,15 @@
+{
+  "name": "Reprieve",
+  "mana_cost": "{1}{W}",
+  "cmc": 2.0,
+  "type_line": "Instant",
+  "oracle_text": "Return target spell to its owner's hand.\nDraw a card.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "W"
+  ],
+  "color_identity": [
+    "W"
+  ]
+}

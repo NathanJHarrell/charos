@@ -1,0 +1,17 @@
+{
+  "name": "Dragonlord Silumgar",
+  "mana_cost": "{4}{U}{B}",
+  "cmc": 6.0,
+  "type_line": "Legendary Creature \u2014 Elder Dragon",
+  "oracle_text": "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of target creature or planeswalker for as long as you control Dragonlord Silumgar.",
+  "power": "3",
+  "toughness": "5",
+  "colors": [
+    "B",
+    "U"
+  ],
+  "color_identity": [
+    "B",
+    "U"
+  ]
+}

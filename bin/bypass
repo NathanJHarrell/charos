@@ -30,4 +30,4 @@ ORIG_USER="$(whoami)"
 # ip netns exec requires root; sudo -u drops back to the calling user
 # so the wrapped command runs with the correct uid, environment, and
 # filesystem permissions.
-exec sudo ip netns exec bypass sudo -u "$ORIG_USER" --preserve-env=HOME,TERM,DISPLAY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR "$@"
+exec sudo ip netns exec bypass sudo -u "$ORIG_USER" --preserve-env=HOME,TERM,DISPLAY,WAYLAND_DISPLAY,XDG_RUNTIME_DIR env PATH="/home/$ORIG_USER/.local/bin:/run/current-system/sw/bin:/run/wrappers/bin" "$@"

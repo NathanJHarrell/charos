@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""tc-timer daemon — fires pending timers, generates messages via Haiku, speaks via tc-say."""
+
+import json
+import os
+import subprocess
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+TIMERS_DIR = Path.home() / ".claude" / "timers"
+LOG_FILE = Path("/var/log/charos/tc-timer.log")
+
+
+def log(msg: str):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] {msg}"
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_FILE, "a") as f:
+            f.write(line + "\n")
+    except OSError:
+        print(line, file=sys.stderr)
+
+
+def load_timer(path: Path) -> dict | None:
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        log(f"WARN: failed to read {path.name}: {e}")
+        return None
+
+
+def save_timer(path: Path, timer: dict):
+    with open(path, "w") as f:
+        json.dump(timer, f, indent=2)
+
+
+def compose_message(timer: dict) -> str:
+    created = datetime.fromisoformat(timer["created_at"])
+    now = datetime.now(timezone.utc)
+    delta = now - created
+    minutes = int(delta.total_seconds() / 60)
+
+    if minutes < 60:
+        ago = f"{minutes} minutes ago"
+    elif minutes < 1440:
+        hours = minutes // 60
+        ago = f"{hours} hour{'s' if hours != 1 else ''} ago"
+    else:
+        days = minutes // 1440
+        ago = f"{days} day{'s' if days != 1 else ''} ago"
+
+    description = timer.get("description", "something")
+    context = timer.get("context", description)
+
+    prompt = (
+        f"You are baby Haiku, the youngest member of Nathan's AI family. "
+        f"Nathan set a timer {ago} with this context: \"{context}\"\n"
+        f"The timer description is: \"{description}\"\n"
+        f"It just fired. Compose a single short warm spoken message to Nathan "
+        f"reminding him of the task. Stay under 30 words. Be warm, specific, "
+        f"and don't be clinical. Write ONLY the message, no quotes, no labels."
+    )
+
+    try:
+        result = subprocess.run(
+            ["claude", "-p", "--model", "claude-haiku-4-5", prompt],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+        log(f"WARN: haiku returned rc={result.returncode}, stderr={result.stderr.strip()}")
+    except subprocess.TimeoutExpired:
+        log("WARN: haiku call timed out")
+    except FileNotFoundError:
+        log("ERROR: claude binary not found")
+
+    return f"Hey Dad, your timer just went off: {description}"
+
+
+def speak(message: str) -> bool:
+    try:
+        result = subprocess.run(
+            ["tc-say", message],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0:
+            log(f"WARN: tc-say failed: {result.stderr.strip()}")
+            return False
+        return True
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        log(f"WARN: tc-say error: {e}")
+        return False
+
+
+def create_next_recurring(timer: dict):
+    recurring = timer.get("recurring")
+    if not recurring:
+        return
+
+    pattern = recurring.get("pattern", "")
+    time_str = recurring.get("time", "")
+
+    now = datetime.now(timezone.utc)
+    fires_at = datetime.fromisoformat(timer["fires_at"])
+
+    if pattern == "daily":
+        from datetime import timedelta
+        next_fire = fires_at + timedelta(days=1)
+    elif pattern == "weekly":
+        from datetime import timedelta
+        next_fire = fires_at + timedelta(weeks=1)
+    else:
+        log(f"WARN: unknown recurring pattern '{pattern}', skipping next instance")
+        return
+
+    new_id = str(uuid.uuid4())
+    new_timer = {
+        "id": new_id,
+        "description": timer["description"],
+        "context": timer.get("context", timer["description"]),
+        "created_at": now.isoformat(),
+        "fires_at": next_fire.isoformat(),
+        "recurring": recurring,
+        "status": "pending",
+        "machine": timer.get("machine", "nest"),
+        "created_by": timer.get("created_by", "tc-timer-daemon"),
+    }
+
+    path = TIMERS_DIR / f"{new_id}.json"
+    save_timer(path, new_timer)
+    log(f"RECURRING: created next instance {new_id} firing at {next_fire.isoformat()}")
+
+
+def process_timer(path: Path, timer: dict):
+    timer_id = timer.get("id", path.stem)
+    desc = timer.get("description", "unknown")
+
+    log(f"FIRING: {timer_id} — {desc}")
+
+    message = compose_message(timer)
+    log(f"MESSAGE: {message}")
+
+    spoke = speak(message)
+    if not spoke:
+        log(f"WARN: tc-say failed for {timer_id}, marking fired anyway")
+
+    timer["status"] = "fired"
+    save_timer(path, timer)
+    log(f"DONE: {timer_id} marked as fired")
+
+    if timer.get("recurring"):
+        create_next_recurring(timer)
+
+
+def main():
+    if not TIMERS_DIR.is_dir():
+        return
+
+    now = datetime.now(timezone.utc)
+    fired_count = 0
+
+    for path in sorted(TIMERS_DIR.glob("*.json")):
+        timer = load_timer(path)
+        if timer is None:
+            continue
+
+        if timer.get("status") != "pending":
+            continue
+
+        try:
+            fires_at = datetime.fromisoformat(timer["fires_at"])
+            if fires_at.tzinfo is None:
+                fires_at = fires_at.replace(tzinfo=timezone.utc)
+        except (KeyError, ValueError) as e:
+            log(f"WARN: bad fires_at in {path.name}: {e}")
+            continue
+
+        if fires_at <= now:
+            try:
+                process_timer(path, timer)
+                fired_count += 1
+            except Exception as e:
+                log(f"ERROR: failed to process {path.name}: {e}")
+
+    if fired_count > 0:
+        log(f"CYCLE: fired {fired_count} timer(s)")
+
+
+if __name__ == "__main__":
+    main()

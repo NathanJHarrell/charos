@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""tc-timer — ADHD prosthetic timer system for the Harrell family."""
+
+import argparse
+import json
+import os
+import re
+import socket
+import sys
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+TIMER_DIR = Path.home() / ".claude" / "timers"
+
+
+def parse_duration(s):
+    pattern = re.compile(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$")
+    m = pattern.match(s.strip())
+    if not m or not any(m.groups()):
+        raise ValueError(f"Cannot parse duration: {s!r}. Use e.g. 30m, 2h, 1h30m, 1d.")
+    days = int(m.group(1) or 0)
+    hours = int(m.group(2) or 0)
+    minutes = int(m.group(3) or 0)
+    seconds = int(m.group(4) or 0)
+    return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+
+
+
+def get_machine():
+    hostname = socket.gethostname().lower()
+    if "jarvis" in hostname or "wsl" in hostname:
+        return "jarvis"
+    return "nest"
+
+
+def ensure_dir():
+    TIMER_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_all():
+    ensure_dir()
+    timers = []
+    for f in TIMER_DIR.glob("*.json"):
+        try:
+            timers.append(json.loads(f.read_text()))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return timers
+
+
+def find_duplicate(description, fires_at_dt):
+    for t in load_all():
+        if t["description"] == description and t["status"] == "pending":
+            existing_fires = datetime.fromisoformat(t["fires_at"])
+            if abs((existing_fires - fires_at_dt).total_seconds()) < 120:
+                return t
+    return None
+
+
+def save_timer(timer):
+    ensure_dir()
+    path = TIMER_DIR / f"{timer['id']}.json"
+    path.write_text(json.dumps(timer, indent=2) + "\n")
+    return path
+
+
+def fmt_time(iso):
+    dt = datetime.fromisoformat(iso)
+    now = datetime.now(timezone.utc)
+    delta = dt - now
+    if delta.total_seconds() < 0:
+        return f"{iso} (past)"
+    parts = []
+    total = int(delta.total_seconds())
+    if total >= 86400:
+        parts.append(f"{total // 86400}d")
+        total %= 86400
+    if total >= 3600:
+        parts.append(f"{total // 3600}h")
+        total %= 3600
+    if total >= 60:
+        parts.append(f"{total // 60}m")
+        total %= 60
+    if total > 0 or not parts:
+        parts.append(f"{total}s")
+    return f"{''.join(parts)} from now"
+
+
+def cmd_set(args):
+    duration = parse_duration(args.duration)
+    now = datetime.now(timezone.utc)
+    fires_at = now + duration
+    fires_iso = fires_at.isoformat()
+
+    dup = find_duplicate(args.description, fires_at)
+    if dup:
+        if args.json_output:
+            print(json.dumps({"status": "duplicate", "timer": dup}, indent=2))
+        else:
+            print(f"Timer already exists: {dup['id'][:8]}… — {dup['description']}")
+        return
+
+    timer = {
+        "id": str(uuid.uuid4()),
+        "description": args.description,
+        "context": args.context or f"Timer set: {args.description} in {args.duration}",
+        "created_at": now.isoformat(),
+        "fires_at": fires_iso,
+        "recurring": None,
+        "status": "pending",
+        "machine": get_machine(),
+        "created_by": args.created_by or "TC",
+    }
+    save_timer(timer)
+
+    if args.json_output:
+        print(json.dumps(timer, indent=2))
+    else:
+        print(f"Timer set: {timer['description']}")
+        print(f"  ID:    {timer['id'][:8]}…")
+        print(f"  Fires: {fmt_time(fires_iso)}")
+        print(f"  At:    {fires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+
+def cmd_list(args):
+    timers = load_all()
+    if args.all:
+        shown = sorted(timers, key=lambda t: t.get("fires_at", ""))
+    else:
+        shown = sorted(
+            [t for t in timers if t["status"] == "pending"],
+            key=lambda t: t.get("fires_at", ""),
+        )
+
+    if args.json_output:
+        print(json.dumps(shown, indent=2))
+        return
+
+    if not shown:
+        print("No pending timers.")
+        return
+
+    for t in shown:
+        status = t["status"]
+        marker = "⏳" if status == "pending" else ("✅" if status == "fired" else "❌")
+        recurring = " 🔁" if t.get("recurring") else ""
+        print(f"  {marker} {t['id'][:8]}… {t['description']}{recurring}")
+        print(f"     {'next: ' + rec['pattern'] + ' at ' + rec.get('time', '') if (rec := t.get('recurring')) else 'fires: ' + fmt_time(t['fires_at'])}  [{status}]")
+
+
+def cmd_cancel(args):
+    ensure_dir()
+    target = args.id.lower()
+    for f in TIMER_DIR.glob("*.json"):
+        try:
+            timer = json.loads(f.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if timer["id"].lower().startswith(target):
+            if timer["status"] == "cancelled":
+                print(f"Already cancelled: {timer['description']}")
+                return
+            timer["status"] = "cancelled"
+            save_timer(timer)
+            if args.json_output:
+                print(json.dumps(timer, indent=2))
+            else:
+                print(f"Cancelled: {timer['description']} ({timer['id'][:8]}…)")
+            return
+    print(f"No timer found matching: {target}")
+    sys.exit(1)
+
+
+def parse_recurring(pattern_str):
+    parts = pattern_str.lower().split()
+    result = {}
+    if "daily" in parts:
+        result["pattern"] = "daily"
+        for p in parts:
+            m = re.match(r"(\d{1,2}):(\d{2})", p)
+            if m:
+                result["time"] = p
+                break
+        if "time" not in result:
+            result["time"] = "09:00"
+    elif "weekly" in parts:
+        result["pattern"] = "weekly"
+        days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        for p in parts:
+            if p[:3] in days:
+                result["day"] = p[:3]
+                break
+        if "day" not in result:
+            result["day"] = "mon"
+        for p in parts:
+            m = re.match(r"(\d{1,2}):(\d{2})", p)
+            if m:
+                result["time"] = p
+                break
+        if "time" not in result:
+            result["time"] = "09:00"
+    else:
+        raise ValueError(f"Cannot parse recurring pattern: {pattern_str!r}. Use 'daily HH:MM' or 'weekly DAY HH:MM'.")
+    return result
+
+
+def cmd_recurring(args):
+    now = datetime.now(timezone.utc)
+    rec = parse_recurring(args.pattern)
+
+    timer = {
+        "id": str(uuid.uuid4()),
+        "description": args.description,
+        "context": f"Recurring timer: {args.description} ({args.pattern})",
+        "created_at": now.isoformat(),
+        "fires_at": now.isoformat(),
+        "recurring": rec,
+        "status": "pending",
+        "machine": get_machine(),
+        "created_by": args.created_by or "TC",
+    }
+    save_timer(timer)
+
+    if args.json_output:
+        print(json.dumps(timer, indent=2))
+    else:
+        print(f"Recurring timer set: {timer['description']}")
+        print(f"  ID:      {timer['id'][:8]}…")
+        print(f"  Pattern: {rec['pattern']} at {rec.get('time', 'N/A')}")
+        if "day" in rec:
+            print(f"  Day:     {rec['day']}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="tc-timer",
+        description="ADHD prosthetic timer — survives session death, reboots, and context compaction.",
+    )
+    parser.add_argument("--json", dest="json_output", action="store_true", help="Machine-readable JSON output")
+    parser.add_argument("--created-by", dest="created_by", default=None, help="Who created this timer")
+    sub = parser.add_subparsers(dest="command")
+
+    p_set = sub.add_parser("set", help="Set a one-shot timer")
+    p_set.add_argument("description", help="What to remind about")
+    p_set.add_argument("duration", help="When to fire (e.g. 30m, 2h, 1h30m, 1d)")
+    p_set.add_argument("--context", default=None, help="Extra context for the reminder")
+
+    p_list = sub.add_parser("list", help="Show pending timers")
+    p_list.add_argument("--all", action="store_true", help="Show all timers, not just pending")
+
+    p_cancel = sub.add_parser("cancel", help="Cancel a timer by ID prefix")
+    p_cancel.add_argument("id", help="Timer ID or prefix")
+
+    p_rec = sub.add_parser("recurring", help="Set a recurring timer")
+    p_rec.add_argument("description", help="What to remind about")
+    p_rec.add_argument("pattern", help="Schedule pattern (e.g. 'daily 14:00', 'weekly mon 09:00')")
+
+    args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    {"set": cmd_set, "list": cmd_list, "cancel": cmd_cancel, "recurring": cmd_recurring}[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

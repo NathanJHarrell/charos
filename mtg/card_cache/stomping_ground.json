@@ -1,0 +1,14 @@
+{
+  "name": "Stomping Ground",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Land \u2014 Mountain Forest",
+  "oracle_text": "({T}: Add {R} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": [
+    "G",
+    "R"
+  ]
+}

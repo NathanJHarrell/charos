@@ -1,0 +1,15 @@
+{
+  "name": "Inferno Titan",
+  "mana_cost": "{4}{R}{R}",
+  "cmc": 6.0,
+  "type_line": "Creature \u2014 Giant",
+  "oracle_text": "{R}: This creature gets +1/+0 until end of turn.\nWhenever this creature enters or attacks, it deals 3 damage divided as you choose among one, two, or three targets.",
+  "power": "6",
+  "toughness": "6",
+  "colors": [
+    "R"
+  ],
+  "color_identity": [
+    "R"
+  ]
+}

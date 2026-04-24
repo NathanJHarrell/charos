@@ -1,0 +1,15 @@
+{
+  "name": "Generous Gift",
+  "mana_cost": "{2}{W}",
+  "cmc": 3.0,
+  "type_line": "Instant",
+  "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "W"
+  ],
+  "color_identity": [
+    "W"
+  ]
+}

@@ -1,0 +1,138 @@
+# TC's Miirym Dragon Tribal
+# Color Identity: Temur (G/U/R)
+# Strategy: Ramp into Miirym, copy big dragons, win via combat or Worldgorger combo
+# Built 2026-04-21 with vibedeck-mtg MCP (Scryfall + Spellbook + EDHRec)
+
+// Commander
+1 Miirym, Sentinel Wyrm
+
+# === Dragons (32) ===
+# Cheap dragons / utility
+1 Sprite Dragon
+1 Dragonlord's Servant
+1 Sarkhan, Fireblood
+1 Verix Bladewing
+
+# Mid-cost dragons
+1 Glorybringer
+1 Stormbreath Dragon
+1 Thundermaw Hellkite
+1 Scourge of Valkas
+1 Backdraft Hellkite
+1 Bonehoard Dracosaur
+1 Demanding Dragon
+1 Niv-Mizzet, Parun
+1 Niv-Mizzet, the Firemind
+1 Sarkhan Unbroken
+
+# Heavy hitters
+1 Lathliss, Dragon Queen
+1 Hellkite Tyrant
+1 Hellkite Charger
+1 Steel Hellkite
+1 Atarka, World Render
+1 Dragonlord Atarka
+1 Old Gnawbone
+1 Terror of the Peaks
+1 Marang River Regent
+1 Skyline Despot
+
+# Combo / win-cons
+1 Worldgorger Dragon
+1 Astral Dragon
+
+# Dragon support enchantments
+1 Dragon Tempest
+1 Crucible of Fire
+1 Garruk's Uprising
+1 Temur Ascendancy
+1 Kindred Discovery
+1 Guardian Project
+
+# === Enablers (3) ===
+1 Maskwood Nexus
+1 Arcane Adaptation
+1 Urza's Incubator
+1 Herald's Horn
+
+# === Token doublers (2) ===
+1 Parallel Lives
+1 Doubling Season
+
+# === Ramp + cost-reduction (15) ===
+1 Sol Ring
+1 Arcane Signet
+1 Mind Stone
+1 Thought Vessel
+1 Talisman of Impulse
+1 Talisman of Creativity
+1 Cultivate
+1 Kodama's Reach
+1 Three Visits
+1 Nature's Lore
+1 Farseek
+1 Skyshroud Claim
+1 Birds of Paradise
+1 Llanowar Elves
+1 Goreclaw, Terror of Qal Sisma
+
+# === Card draw (3 — supplements creature-based draw above) ===
+1 Rhystic Study
+1 Mystic Remora
+1 Sylvan Library
+
+# === Interaction (6) ===
+1 Beast Within
+1 Krosan Grip
+1 Counterspell
+1 Force of Will
+1 Cyclonic Rift
+1 Heroic Intervention
+
+# === Lands (37) ===
+# Multicolor lands
+1 Command Tower
+1 Frontier Bivouac
+1 Reflecting Pool
+1 City of Brass
+1 Mana Confluence
+1 Path of Ancestry
+1 Reliquary Tower
+1 Cavern of Souls
+1 Unclaimed Territory
+
+# Dual lands (shock + filter + check)
+1 Steam Vents
+1 Stomping Ground
+1 Breeding Pool
+1 Karplusan Forest
+1 Yavimaya Coast
+1 Shivan Reef
+1 Cascade Bluffs
+1 Spirebluff Canal
+1 Botanical Sanctum
+
+# Fetches
+1 Wooded Foothills
+1 Misty Rainforest
+1 Scalding Tarn
+
+# Channel lands
+1 Boseiju, Who Endures
+1 Otawara, Soaring City
+1 Sokenzan, Crucible of Defiance
+
+# Basics
+1 Forest
+1 Forest
+1 Forest
+1 Forest
+1 Forest
+1 Mountain
+1 Mountain
+1 Mountain
+1 Mountain
+1 Island
+1 Island
+1 Island
+1 Island

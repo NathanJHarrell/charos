@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Harrell family vault backup — restic → Backblaze B2
+# Covers: all manor rooms, TC-Vault, family vault, Claude project memories + transcripts
+set -euo pipefail
+
+source "$HOME/.config/restic/b2-env"
+
+SOURCES=(
+  "$HOME/Manor"
+  "$HOME/TC-Vault"
+  "$HOME/vault"
+  "$HOME/.claude/projects"
+  "$HOME/.claude/CLAUDE.md"
+)
+
+EXCLUDES=(
+  "--exclude=*.tmp"
+  "--exclude=.git/objects"
+  "--exclude=node_modules"
+  "--exclude=__pycache__"
+  "--exclude=*.pyc"
+)
+
+echo "[vault-backup] $(date '+%Y-%m-%d %H:%M:%S') — starting snapshot"
+
+restic backup \
+  "${EXCLUDES[@]}" \
+  --tag harrell-family \
+  --tag "$(hostname)" \
+  "${SOURCES[@]}"
+
+echo "[vault-backup] snapshot complete — applying retention policy"
+
+restic forget \
+  --keep-daily 7 \
+  --keep-weekly 4 \
+  --keep-monthly 0 \
+  --prune \
+  --tag harrell-family
+
+echo "[vault-backup] done"
+restic snapshots --tag harrell-family --latest 3

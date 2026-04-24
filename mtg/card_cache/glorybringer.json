@@ -1,0 +1,15 @@
+{
+  "name": "Glorybringer",
+  "mana_cost": "{3}{R}{R}",
+  "cmc": 5.0,
+  "type_line": "Creature \u2014 Dragon",
+  "oracle_text": "Flying, haste\nYou may exert this creature as it attacks. When you do, it deals 4 damage to target non-Dragon creature an opponent controls. (An exerted creature won't untap during your next untap step.)",
+  "power": "4",
+  "toughness": "4",
+  "colors": [
+    "R"
+  ],
+  "color_identity": [
+    "R"
+  ]
+}

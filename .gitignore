@@ -3,3 +3,11 @@ nixos/hardware-configuration.nix
 __pycache__/
 furnace/.venv/
 .venv/
+
+# Security hardening (2026-04-22 council): private staging + encrypted blobs.
+# Redundant with ~/.gitignore_global for defense in depth.
+.private/
+*.age
+unmuzzled-drafts/
+family-council/*.md
+drawercast/tc-nest.tailb8d6bc.ts.net.key

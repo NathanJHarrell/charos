@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# note-toggle — Cmd+N behavior: open the note drawer if none exists,
+# else close the existing one.
+#
+# Closing via this toggle sends a close-request to the drawer window.
+# Foot relays SIGHUP to vim, which triggers VimLeave autocmds (see
+# ~/.vimrc — `autocmd VimLeave * silent! wa` autosaves). Persistent
+# undo at ~/.vim/undo/ is the third net. If an unsaved note still ends
+# up in swap, recover with: vim -r <filepath>
+
+set -euo pipefail
+
+if swaymsg -t get_tree | grep -q '"app_id": "note"'; then
+  exec swaymsg '[app_id="note"] kill'
+else
+  exec /home/nate/.local/bin/note
+fi

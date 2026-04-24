@@ -1,0 +1,15 @@
+{
+  "name": "Exquisite Blood",
+  "mana_cost": "{4}{B}",
+  "cmc": 5.0,
+  "type_line": "Enchantment",
+  "oracle_text": "Whenever an opponent loses life, you gain that much life.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "B"
+  ],
+  "color_identity": [
+    "B"
+  ]
+}

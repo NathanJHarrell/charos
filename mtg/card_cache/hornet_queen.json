@@ -1,0 +1,15 @@
+{
+  "name": "Hornet Queen",
+  "mana_cost": "{4}{G}{G}{G}",
+  "cmc": 7.0,
+  "type_line": "Creature \u2014 Insect",
+  "oracle_text": "Flying, deathtouch\nWhen this creature enters, create four 1/1 green Insect creature tokens with flying and deathtouch.",
+  "power": "2",
+  "toughness": "2",
+  "colors": [
+    "G"
+  ],
+  "color_identity": [
+    "G"
+  ]
+}

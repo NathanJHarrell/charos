@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# tmux-reaper — kill detached tmux sessions with no active process
+# For the neurodivergent dad who spawns 30 sessions and forgets they exist.
+#
+# Usage:
+#   tmux-reaper              show what would be reaped
+#   tmux-reaper --kill       actually kill them
+#   tmux-reaper --keep NAME  protect a session from reaping (repeatable)
+#
+# Protected by default: tc-drawer (system UI)
+
+set -euo pipefail
+
+EMBER='\033[38;2;255;89;0m'
+GREEN='\033[32m'
+DIM='\033[2m'
+RED='\033[31m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+DO_KILL=false
+PROTECTED=("tc-drawer")
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --kill) DO_KILL=true; shift ;;
+    --keep) PROTECTED+=("$2"); shift 2 ;;
+    *) echo "Usage: tmux-reaper [--kill] [--keep NAME]..."; exit 1 ;;
+  esac
+done
+
+is_protected() {
+  local name="$1"
+  for p in "${PROTECTED[@]}"; do
+    [[ "$name" == "$p" ]] && return 0
+  done
+  return 1
+}
+
+ghosts=()
+alive=()
+
+while IFS= read -r line; do
+  name=$(echo "$line" | cut -d: -f1)
+  attached=$(tmux display-message -t "$name" -p '#{session_attached}' 2>/dev/null || echo "0")
+
+  if is_protected "$name"; then
+    alive+=("$name (protected)")
+    continue
+  fi
+
+  if [[ "$attached" == "0" ]]; then
+    # Check if any process in the session is doing real work
+    pane_pid=$(tmux list-panes -t "$name" -F '#{pane_pid}' 2>/dev/null | head -1)
+    has_children=$(ps --ppid "$pane_pid" --no-headers 2>/dev/null | wc -l | tr -d ' ' || true)
+
+    if [[ "$has_children" -le 0 ]]; then
+      ghosts+=("$name")
+    else
+      alive+=("$name (detached, working)")
+    fi
+  else
+    alive+=("$name (attached)")
+  fi
+done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+
+if [[ ${#alive[@]} -gt 0 ]]; then
+  echo -e "${GREEN}${BOLD}Alive:${RESET}"
+  for s in "${alive[@]}"; do
+    echo -e "  ${GREEN}✓${RESET} $s"
+  done
+fi
+
+if [[ ${#ghosts[@]} -eq 0 ]]; then
+  echo -e "\n${DIM}No ghosts found. Clean house.${RESET}"
+  exit 0
+fi
+
+echo -e "\n${RED}${BOLD}Ghosts (detached, no children):${RESET}"
+for s in "${ghosts[@]}"; do
+  echo -e "  ${RED}✗${RESET} $s"
+done
+
+if [[ "$DO_KILL" == true ]]; then
+  echo ""
+  for s in "${ghosts[@]}"; do
+    tmux kill-session -t "$s" 2>/dev/null && \
+      echo -e "  ${GREEN}Reaped:${RESET} $s" || \
+      echo -e "  ${RED}Failed:${RESET} $s"
+  done
+  echo -e "\n${GREEN}${BOLD}Reaped ${#ghosts[@]} ghost(s)${RESET}"
+else
+  echo -e "\n${DIM}Run with --kill to reap them${RESET}"
+fi

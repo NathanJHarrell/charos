@@ -1,0 +1,15 @@
+{
+  "name": "Goblin Welder",
+  "mana_cost": "{R}",
+  "cmc": 1.0,
+  "type_line": "Creature \u2014 Goblin Artificer",
+  "oracle_text": "{T}: Choose target artifact a player controls and target artifact card in that player's graveyard. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield.",
+  "power": "1",
+  "toughness": "1",
+  "colors": [
+    "R"
+  ],
+  "color_identity": [
+    "R"
+  ]
+}

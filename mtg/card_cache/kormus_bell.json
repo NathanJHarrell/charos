@@ -1,0 +1,11 @@
+{
+  "name": "Kormus Bell",
+  "mana_cost": "{4}",
+  "cmc": 4.0,
+  "type_line": "Artifact",
+  "oracle_text": "All Swamps are 1/1 black creatures that are still lands.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

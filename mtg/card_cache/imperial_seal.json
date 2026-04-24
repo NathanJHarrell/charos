@@ -1,0 +1,15 @@
+{
+  "name": "Imperial Seal",
+  "mana_cost": "{B}",
+  "cmc": 1.0,
+  "type_line": "Sorcery",
+  "oracle_text": "Search your library for a card, then shuffle and put that card on top. You lose 2 life.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "B"
+  ],
+  "color_identity": [
+    "B"
+  ]
+}

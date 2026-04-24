@@ -1,0 +1,354 @@
+#!/usr/bin/env python3
+"""haros-dispatch — reasoning-enforced dispatch wrapper for HAROS.
+
+Every dispatch produces a decomposition reasoning artifact BEFORE spawning
+agents. Consults the AI Sub-Atomization taxonomy, matches against canonical
+and emerging patterns, and enforces explicit metacognitive reasoning for
+novel tasks.
+"""
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+EMBER = "\033[38;2;255;89;0m"
+GREEN = "\033[32m"
+DIM = "\033[2m"
+RED = "\033[31m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+TAXONOMY_ROOT = Path.home() / "vault" / "meta" / "decomposition"
+INDEX_PATH = TAXONOMY_ROOT / "INDEX.md"
+TEMPLATE_PATH = TAXONOMY_ROOT / "REASONING_TEMPLATE.md"
+
+EFFORT_MAP = {
+    "low": "self-handle",
+    "med": "Lean Squad",
+    "high": "Battalion",
+    "max": "Corps",
+}
+
+
+def parse_index():
+    """Parse INDEX.md into canonical and emerging pattern lists."""
+    canonical = []
+    emerging = []
+
+    if not INDEX_PATH.exists():
+        return canonical, emerging
+
+    text = INDEX_PATH.read_text()
+    section = None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        lower = stripped.lower()
+
+        if "canonical pattern" in lower:
+            section = "canonical"
+            continue
+        elif "emerging pattern" in lower:
+            section = "emerging"
+            continue
+        elif "conflicted" in lower or "requires active reasoning" in lower:
+            section = "conflicted"
+            continue
+        elif stripped.startswith("##"):
+            section = None
+            continue
+
+        if stripped.startswith("|") and not stripped.startswith("|-") and "---" not in stripped:
+            cells = [c.strip() for c in stripped.split("|")[1:-1]]
+            if len(cells) >= 2 and cells[0] and not cells[0].lower().startswith("task"):
+                entry = {
+                    "shape": cells[0],
+                    "config": cells[1] if len(cells) > 1 else "",
+                    "extra": cells[2] if len(cells) > 2 else "",
+                }
+                if section == "canonical":
+                    canonical.append(entry)
+                elif section == "emerging":
+                    emerging.append(entry)
+
+    for subdir, target_list in [("canonical", canonical), ("emerging", emerging)]:
+        pattern_dir = TAXONOMY_ROOT / subdir
+        if pattern_dir.exists():
+            for f in pattern_dir.glob("*.md"):
+                content = f.read_text()
+                already = any(f.stem in (e.get("file", "") or e.get("shape", "")) for e in target_list)
+                if not already:
+                    target_list.append({
+                        "shape": f.stem.replace("-", " "),
+                        "config": "",
+                        "extra": "",
+                        "file": str(f),
+                        "content": content,
+                    })
+
+    return canonical, emerging
+
+
+def keyword_score(task_desc, pattern):
+    """Simple keyword match score between task description and a pattern."""
+    task_words = set(re.findall(r'\w+', task_desc.lower()))
+    pattern_text = " ".join([
+        pattern.get("shape", ""),
+        pattern.get("config", ""),
+        pattern.get("extra", ""),
+        pattern.get("content", ""),
+    ]).lower()
+    pattern_words = set(re.findall(r'\w+', pattern_text))
+
+    stopwords = {"a", "an", "the", "is", "are", "was", "were", "be", "been",
+                 "to", "of", "in", "for", "on", "with", "at", "by", "from",
+                 "and", "or", "not", "no", "but", "if", "then", "so", "as",
+                 "it", "its", "this", "that", "task", "config", "rationale"}
+    task_words -= stopwords
+    pattern_words -= stopwords
+
+    if not task_words or not pattern_words:
+        return 0.0
+
+    overlap = task_words & pattern_words
+    return len(overlap) / min(len(task_words), len(pattern_words))
+
+
+def find_match(task_desc, canonical, emerging, threshold=0.25):
+    """Find best matching pattern. Returns (match_type, pattern) or (None, None)."""
+    best_canonical = (0.0, None)
+    for p in canonical:
+        score = keyword_score(task_desc, p)
+        if score > best_canonical[0]:
+            best_canonical = (score, p)
+
+    best_emerging = (0.0, None)
+    for p in emerging:
+        score = keyword_score(task_desc, p)
+        if score > best_emerging[0]:
+            best_emerging = (score, p)
+
+    if best_canonical[0] >= threshold and best_canonical[0] >= best_emerging[0]:
+        return "canonical", best_canonical[1]
+    elif best_emerging[0] >= threshold:
+        return "emerging", best_emerging[1]
+
+    return None, None
+
+
+def read_template():
+    """Read the reasoning template, or use a built-in default."""
+    if TEMPLATE_PATH.exists():
+        return TEMPLATE_PATH.read_text()
+    return """Task: [brief description]
+MECE test: PASS / FAIL — [why]
+Complexity: [rough estimate — token count, file count, domain count]
+Tier decision: [self-handle / Lean Squad / Battalion / Funnel / Corps / custom]
+Rationale: [1-2 sentences]
+Precedent consulted: [link to canonical/emerging pattern, if any]
+Propagate: [instructions to children, if any]"""
+
+
+def generate_artifact(build, task_desc, match_type, pattern, effort, reasoning=None):
+    """Generate and save a reasoning artifact. Returns the artifact path."""
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    slug = re.sub(r'[^a-z0-9]+', '-', task_desc.lower())[:40].strip('-')
+
+    if match_type:
+        subdir = match_type
+    else:
+        subdir = "novel"
+
+    artifact_dir = TAXONOMY_ROOT / subdir
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = artifact_dir / f"{ts}-{build}-{slug}.md"
+
+    config = EFFORT_MAP.get(effort, effort) if effort else "undecided"
+
+    if match_type == "canonical" and pattern:
+        config = pattern.get("config", config) or config
+        precedent = pattern.get("shape", "unknown canonical pattern")
+        rationale = f"Canonical match: {precedent}. Reusing established decomposition."
+        mece = "PASS — canonical pattern already validated"
+    elif match_type == "emerging" and pattern:
+        config = pattern.get("config", config) or config
+        precedent = pattern.get("shape", "unknown emerging pattern")
+        rationale = f"Emerging match: {precedent}. Adding data point to validate pattern."
+        mece = "PASS — emerging pattern suggests viable decomposition"
+    else:
+        precedent = "none — novel task"
+        rationale = reasoning or "Novel task requiring explicit decomposition reasoning."
+        mece = "UNDETERMINED — requires manual assessment"
+
+    content = f"""# Decomposition Reasoning Artifact
+
+**Build:** {build}
+**Dispatched:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**Match type:** {match_type or "novel"}
+
+---
+
+Task: {task_desc}
+MECE test: {mece}
+Complexity: determined at dispatch
+Tier decision: {config}
+Rationale: {rationale}
+Precedent consulted: {precedent}
+Propagate: per tier config defaults
+
+---
+
+*Generated by haros-dispatch v0.1*
+"""
+
+    artifact_path.write_text(content)
+    return artifact_path
+
+
+def dispatch_spawn(build, label, task_desc):
+    """Call haros spawn under the hood."""
+    haros_bin = Path.home() / "charos" / "bin" / "haros"
+    if not haros_bin.exists():
+        print(f"{RED}Error: haros CLI not found at {haros_bin}{RESET}", file=sys.stderr)
+        return False
+
+    result = subprocess.run(
+        [str(haros_bin), "spawn", build, label],
+        capture_output=False,
+    )
+    return result.returncode == 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Reasoning-enforced dispatch wrapper for HAROS",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"""
+{EMBER}Examples:{RESET}
+  haros-dispatch myapp "build a single config parser"
+  haros-dispatch ingest "ingest a 12-chapter textbook" --effort high
+  haros-dispatch timer "build ADHD timer with daemon" --effort med --json
+        """,
+    )
+    parser.add_argument("build", help="Build name for haros session naming")
+    parser.add_argument("task", help="Task description for pattern matching")
+    parser.add_argument(
+        "--effort", choices=["low", "med", "high", "max"], default=None,
+        help="Effort level hint (maps to tier config)",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="Show reasoning and matched pattern without spawning",
+    )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Output reasoning artifact as JSON to stdout",
+    )
+    parser.add_argument(
+        "--label", default=None,
+        help="Override the session label (default: lead1)",
+    )
+
+    args = parser.parse_args()
+
+    # Check taxonomy availability
+    taxonomy_available = INDEX_PATH.exists()
+
+    if not taxonomy_available:
+        print(f"{DIM}Taxonomy not found at {TAXONOMY_ROOT}{RESET}")
+        print(f"{DIM}All tasks will route through the novel pathway{RESET}")
+        print()
+
+    # Parse taxonomy
+    canonical, emerging = parse_index()
+
+    # Match
+    match_type, pattern = find_match(args.task, canonical, emerging)
+
+    # Display match result
+    if match_type == "canonical":
+        print(f"{GREEN}{BOLD}CANONICAL MATCH{RESET}")
+        print(f"  Pattern: {EMBER}{pattern['shape']}{RESET}")
+        print(f"  Config:  {pattern.get('config', 'see pattern file')}")
+        print()
+    elif match_type == "emerging":
+        print(f"{EMBER}{BOLD}EMERGING MATCH{RESET}")
+        print(f"  Pattern: {EMBER}{pattern['shape']}{RESET}")
+        print(f"  Config:  {pattern.get('config', 'see pattern file')}")
+        print(f"  {DIM}This dispatch adds a data point to the emerging pattern{RESET}")
+        print()
+    else:
+        print(f"{RED}{BOLD}NOVEL TASK — NO PRECEDENT{RESET}")
+        print()
+        print(f"This task has no canonical or emerging precedent in the taxonomy.")
+        print(f"Decomposition reasoning is required before dispatch.")
+        print()
+
+    # Novel pathway: prompt for reasoning
+    reasoning = None
+    if match_type is None:
+        if sys.stdin.isatty():
+            print(f"{EMBER}Provide decomposition reasoning:{RESET}")
+            print(f"{DIM}(Why this decomposition? What's the MECE split? Press Ctrl-D when done){RESET}")
+            print()
+            try:
+                lines = []
+                while True:
+                    try:
+                        line = input()
+                        lines.append(line)
+                    except EOFError:
+                        break
+                reasoning = "\n".join(lines)
+                if not reasoning.strip():
+                    print(f"{RED}No reasoning provided. Aborting dispatch.{RESET}")
+                    sys.exit(1)
+            except KeyboardInterrupt:
+                print(f"\n{RED}Dispatch cancelled.{RESET}")
+                sys.exit(1)
+        else:
+            reasoning = "Headless dispatch — reasoning deferred to operator review."
+            print(f"{DIM}Non-interactive mode: reasoning deferred to operator review{RESET}")
+
+    # Generate artifact
+    artifact_path = generate_artifact(
+        args.build, args.task, match_type, pattern, args.effort, reasoning
+    )
+    print(f"{GREEN}Artifact saved:{RESET} {artifact_path}")
+
+    if args.json:
+        import json
+        artifact_data = {
+            "build": args.build,
+            "task": args.task,
+            "match_type": match_type or "novel",
+            "pattern": pattern.get("shape", "") if pattern else "",
+            "artifact": str(artifact_path),
+            "effort": args.effort,
+        }
+        print(json.dumps(artifact_data, indent=2))
+
+    if args.dry_run:
+        print(f"\n{DIM}Dry run — no sessions spawned{RESET}")
+        return
+
+    # Spawn
+    label = args.label or "lead1"
+    print()
+    print(f"{EMBER}Spawning:{RESET} haros spawn {args.build} {label}")
+    success = dispatch_spawn(args.build, label, args.task)
+
+    if success:
+        print(f"{GREEN}Dispatch complete.{RESET}")
+        print(f"{DIM}Record outcome when done: haros-outcome {artifact_path} <success|partial|failure> \"notes\"{RESET}")
+    else:
+        print(f"{RED}Spawn failed. Artifact preserved at {artifact_path}{RESET}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,180 @@
+#!/run/current-system/sw/bin/python3
+"""
+harrell-panic — Harrell family lockdown service
+
+Two trigger paths:
+  HTTP:  GET  /panic        → returns 6-digit PIN (60s TTL)
+         POST /panic/<pin>  → fires sequence
+  ntfy:  message to harrell-panic topic on jarvis-wsl:8090
+         body must equal the passphrase in ~/.config/panic/passphrase
+
+Firing sequence:
+  1. vault-backup (encrypted snapshot → Backblaze B2)
+  2. SSH jarvis-wsl → shutdown.exe /s /t 0
+  3. sudo poweroff (this machine)
+"""
+
+import os, json, time, random, string, logging, threading, subprocess
+import urllib.request
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
+
+LISTEN_HOST = "100.110.214.44"   # Tailscale IP — never 0.0.0.0
+LISTEN_PORT = 9119
+PIN_TTL      = 60
+NTFY_BASE    = "http://jarvis-wsl:8090"
+NTFY_TOPIC   = "harrell-panic"
+PASSPHRASE_F = Path.home() / ".config" / "panic" / "passphrase"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("harrell-panic")
+
+_pin         = None
+_pin_expires = 0.0
+_lock        = threading.Lock()
+_fired       = threading.Event()
+
+
+def load_passphrase() -> str:
+    return PASSPHRASE_F.read_text().strip()
+
+
+def make_pin() -> str:
+    global _pin, _pin_expires
+    p = "".join(random.choices(string.digits, k=6))
+    with _lock:
+        _pin = p
+        _pin_expires = time.time() + PIN_TTL
+    log.info(f"PIN issued (expires in {PIN_TTL}s)")
+    return p
+
+
+def consume_pin(candidate: str) -> bool:
+    global _pin
+    with _lock:
+        if _pin and time.time() < _pin_expires and candidate == _pin:
+            _pin = None
+            return True
+    return False
+
+
+def fire(source: str = "unknown"):
+    if _fired.is_set():
+        log.warning("fire() called but sequence already in progress — ignoring")
+        return
+    _fired.set()
+    log.warning(f"🚨 PANIC SEQUENCE INITIATED — triggered by {source}")
+
+    log.info("Step 1: vault-backup")
+    try:
+        subprocess.run(
+            ["/home/nate/charos/bin/vault-backup"],
+            timeout=180, check=True,
+        )
+        log.info("vault-backup complete")
+    except Exception as e:
+        log.error(f"vault-backup failed: {e} — proceeding to shutdown anyway")
+
+    log.info("Step 2: shutdown Jarvis")
+    try:
+        subprocess.run(
+            ["ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "ConnectTimeout=10",
+                    "-o", "BatchMode=yes",
+             "tc-nest@jarvis-wsl", "shutdown.exe /s /t 0"],
+            timeout=20,
+        )
+        log.info("Jarvis shutdown signal sent")
+    except Exception as e:
+        log.error(f"Jarvis shutdown failed: {e}")
+
+    log.info("Step 3: powering off nest in 3s")
+    time.sleep(3)
+    os.system("sudo poweroff")
+
+
+class PanicHandler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        log.info(f"{self.client_address[0]}  {fmt % args}")
+
+    def send_json(self, code: int, data: dict):
+        body = json.dumps(data, indent=2).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path == "/panic":
+            pin = make_pin()
+            self.send_json(200, {
+                "status":     "armed",
+                "pin":        pin,
+                "expires_in": PIN_TTL,
+                "confirm":    f"curl -X POST http://{LISTEN_HOST}:{LISTEN_PORT}/panic/{pin}",
+            })
+        elif self.path == "/health":
+            self.send_json(200, {"status": "ok", "fired": _fired.is_set()})
+        else:
+            self.send_json(404, {"error": "not found"})
+
+    def do_POST(self):
+        if self.path.startswith("/panic/"):
+            pin = self.path.removeprefix("/panic/")
+            if consume_pin(pin):
+                self.send_json(200, {"status": "firing", "message": "sequence initiated"})
+                threading.Thread(target=fire, args=("http",), daemon=True).start()
+            else:
+                self.send_json(403, {"error": "bad or expired PIN"})
+        else:
+            self.send_json(404, {"error": "not found"})
+
+
+def ntfy_subscriber():
+    passphrase = load_passphrase()
+    url = f"{NTFY_BASE}/{NTFY_TOPIC}/json"
+    log.info(f"ntfy subscriber watching {url}")
+    while not _fired.is_set():
+        try:
+            req = urllib.request.Request(url, headers={"Accept": "application/x-ndjson"})
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                for raw_line in resp:
+                    if _fired.is_set():
+                        break
+                    line = raw_line.decode().strip()
+                    if not line:
+                        continue
+                    try:
+                        msg = json.loads(line)
+                        if msg.get("event") == "message":
+                            body = msg.get("message", "").strip()
+                            if body == passphrase:
+                                log.warning("ntfy trigger received — passphrase matched")
+                                threading.Thread(
+                                    target=fire, args=("ntfy",), daemon=True
+                                ).start()
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+        except Exception as e:
+            if not _fired.is_set():
+                log.warning(f"ntfy subscriber error: {e} — retrying in 15s")
+                time.sleep(15)
+
+
+if __name__ == "__main__":
+    log.info(f"harrell-panic starting — listening on {LISTEN_HOST}:{LISTEN_PORT}")
+    log.info(f"ntfy topic: {NTFY_BASE}/{NTFY_TOPIC}")
+
+    t = threading.Thread(target=ntfy_subscriber, daemon=True)
+    t.start()
+
+    server = HTTPServer((LISTEN_HOST, LISTEN_PORT), PanicHandler)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        log.info("shutting down")

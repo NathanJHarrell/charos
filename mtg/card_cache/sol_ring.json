@@ -1,0 +1,11 @@
+{
+  "name": "Sol Ring",
+  "mana_cost": "{1}",
+  "cmc": 1.0,
+  "type_line": "Artifact",
+  "oracle_text": "{T}: Add {C}{C}.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

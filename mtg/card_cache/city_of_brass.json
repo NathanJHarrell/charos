@@ -1,0 +1,11 @@
+{
+  "name": "City of Brass",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Land",
+  "oracle_text": "Whenever this land becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

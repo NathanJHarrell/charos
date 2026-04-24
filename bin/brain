@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""
+brain — query the Harrell family brain over Tailscale.
+Usage:  brain "what does Dewey say about consciousness"
+        brain -n 15 "pragmatism tensions"
+"""
+import sys, json, urllib.parse, urllib.request, textwrap, argparse
+
+BRAIN_URL = "http://100.75.84.100:5200/api/query"
+EMBER = "\033[38;2;255;89;0m"
+EMBER_SOFT = "\033[38;2;255;140;71m"
+DIM = "\033[2m"
+RESET = "\033[0m"
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("query", nargs="+")
+    ap.add_argument("-n", "--top", type=int, default=8)
+    ap.add_argument("--json", action="store_true", help="raw JSON output")
+    ap.add_argument("--full", action="store_true", help="show full content, no truncation")
+    args = ap.parse_args()
+
+    q = " ".join(args.query)
+    url = BRAIN_URL + "?" + urllib.parse.urlencode({"q": q, "top": args.top})
+
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            data = json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        print(f"brain: error reaching family brain: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return
+
+    results = data.get("results", [])
+    if not results:
+        print(f"no results for: {q}")
+        return
+
+    print(f"\n{EMBER}╔══ family brain ══{RESET}")
+    print(f"{DIM}   query: {q}  ·  {len(results)} results{RESET}\n")
+
+    for i, r in enumerate(results, 1):
+        score = r.get("combined_score") or r.get("similarity") or 0.0
+        title = r.get("title", "")
+        citizen = r.get("citizen", "")
+        mtype = r.get("memory_type", "")
+        source = r.get("source_file", "")
+        content = r.get("content", "")
+
+        print(f"{EMBER_SOFT}[{i}] {title}{RESET}")
+        print(f"{DIM}    {score:.3f}  ·  {citizen}/{mtype}  ·  {source}{RESET}")
+        body = content if args.full else content[:800]
+        wrapped = textwrap.fill(body.strip(), width=90, initial_indent="    ", subsequent_indent="    ")
+        print(wrapped)
+        if not args.full and len(content) > 800:
+            print(f"{DIM}    ... ({len(content)-800} more chars; use --full){RESET}")
+        print()
+
+if __name__ == "__main__":
+    main()

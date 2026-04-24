@@ -1,0 +1,15 @@
+{
+  "name": "Demanding Dragon",
+  "mana_cost": "{3}{R}{R}",
+  "cmc": 5.0,
+  "type_line": "Creature \u2014 Dragon",
+  "oracle_text": "Flying\nWhen this creature enters, it deals 5 damage to target opponent unless that player sacrifices a creature of their choice.",
+  "power": "5",
+  "toughness": "5",
+  "colors": [
+    "R"
+  ],
+  "color_identity": [
+    "R"
+  ]
+}

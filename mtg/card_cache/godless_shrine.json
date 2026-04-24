@@ -1,0 +1,14 @@
+{
+  "name": "Godless Shrine",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Land \u2014 Plains Swamp",
+  "oracle_text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": [
+    "B",
+    "W"
+  ]
+}

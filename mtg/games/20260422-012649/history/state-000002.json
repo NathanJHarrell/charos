@@ -1,0 +1,249 @@
+{
+  "id": "20260422-012649",
+  "created": "2026-04-22T01:26:49.698188",
+  "turn": 0,
+  "active_player": 1,
+  "phase": "mulligan",
+  "players": [
+    {
+      "name": "Nathan",
+      "commander": "Sol Ring",
+      "life": 40,
+      "library": [
+        {
+          "id": "c2",
+          "name": "Wastes",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c4",
+          "name": "Wastes",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "hand": [
+        {
+          "id": "c5",
+          "name": "Wastes",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c3",
+          "name": "Wastes",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c8",
+          "name": "Eldrazi Conscription",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c1",
+          "name": "Wastes",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c9",
+          "name": "Endbringer",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c6",
+          "name": "Kozilek, Butcher of Truth",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c7",
+          "name": "Ulamog, the Infinite Gyre",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "battlefield": [],
+      "graveyard": [],
+      "exile": [],
+      "command_zone": [
+        {
+          "id": "c10",
+          "name": "Sol Ring",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "commander_damage": {},
+      "kept": true
+    },
+    {
+      "name": "TC",
+      "commander": "Sol Ring",
+      "life": 40,
+      "library": [
+        {
+          "id": "c19",
+          "name": "Beast Within",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c17",
+          "name": "Dragonlord Ojutai",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "hand": [
+        {
+          "id": "c13",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c18",
+          "name": "Hornet Queen",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c15",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c16",
+          "name": "Dragonlord Silumgar",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c12",
+          "name": "Island",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c14",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c11",
+          "name": "Island",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "battlefield": [],
+      "graveyard": [],
+      "exile": [],
+      "command_zone": [
+        {
+          "id": "c20",
+          "name": "Sol Ring",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "commander_damage": {},
+      "kept": true
+    },
+    {
+      "name": "Cinder",
+      "commander": "Feldon of the Third Path",
+      "life": 40,
+      "library": [
+        {
+          "id": "c25",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c29",
+          "name": "Lightning Greaves",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c23",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "hand": [
+        {
+          "id": "c22",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c28",
+          "name": "Faithless Looting",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c27",
+          "name": "Goblin Welder",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c24",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c26",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c30",
+          "name": "Inferno Titan",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c21",
+          "name": "Sol Ring",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "battlefield": [],
+      "graveyard": [],
+      "exile": [],
+      "command_zone": [
+        {
+          "id": "c31",
+          "name": "Feldon of the Third Path",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "commander_damage": {}
+    }
+  ],
+  "stack": [],
+  "log": [
+    "[01:26:49] Game started. TC goes first (random roll).",
+    "[01:27:03] Nathan kept (after 0 mulligan(s)).",
+    "[01:27:03] TC kept (after 0 mulligan(s))."
+  ],
+  "next_id": 32
+}

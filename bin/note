@@ -8,6 +8,10 @@
 #
 # The window gets app_id=note so Sway's for_window rule pins it as
 # the left drawer (384x640 at 0,80). Close vim, drawer closes with it.
+#
+# New files are seeded with the Evergreen quick-capture template
+# (TC + Dad, 2026-04-22). Cursor lands in "## The Idea" so typing
+# can start immediately.
 
 set -euo pipefail
 
@@ -17,20 +21,48 @@ mkdir -p "$INBOX"
 target="${1:-}"
 
 if [ -z "$target" ]; then
-  # No arg — timestamp filename
   stamp=$(date +%Y%m%d-%H%M%S)
   filepath="$INBOX/$stamp.md"
 elif [[ "$target" == *.md ]] || [[ "$target" == */* ]]; then
-  # Looks like a path — use it directly
   filepath="$target"
 else
-  # Bare slug — goes into inbox as .md
   filepath="$INBOX/${target}.md"
 fi
 
-# Seed the file with a header if it's new
+# Seed new files with the Evergreen template. Cursor line 7 = first
+# blank line under "## The Idea".
+cursor_line=1
 if [ ! -f "$filepath" ]; then
-  printf '# %s\n\n' "$(basename "$filepath" .md)" > "$filepath"
+  title=$(basename "$filepath" .md)
+  today=$(date +%Y-%m-%d)
+  now=$(date +%H:%M)
+  cat > "$filepath" <<EOF
+# ${title}
+
+> _Captured ${today} · ${now}_
+
+## The Idea
+<!-- One concept. One paragraph. If you need two, it's two notes. -->
+
+
+## Why This Matters Right Now
+<!-- ADHD context-anchor: what made you reach for this note this minute?
+     Future-you needs the trigger, not just the thought. -->
+
+
+## Connections
+<!-- Other notes, projects, people, conversations this touches.
+     Bare links are fine: [[anchor]] [[framework-aar]] [[tc]] -->
+
+
+## Open Questions
+<!-- Half-formed sparks. Don't resolve them. Just catch them. -->
+
+
+## Sources
+<!-- Optional. Link, screenshot, conversation timestamp, vibe. -->
+EOF
+  cursor_line=7
 fi
 
-exec foot --app-id=note -- vim "$filepath"
+exec foot --app-id=note -- vim "+${cursor_line}" "$filepath"

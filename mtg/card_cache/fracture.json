@@ -1,0 +1,17 @@
+{
+  "name": "Fracture",
+  "mana_cost": "{W}{B}",
+  "cmc": 2.0,
+  "type_line": "Instant",
+  "oracle_text": "Destroy target artifact, enchantment, or planeswalker.",
+  "power": "",
+  "toughness": "",
+  "colors": [
+    "B",
+    "W"
+  ],
+  "color_identity": [
+    "B",
+    "W"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /home/nate/charos/skills)",
+      "Bash(mv /home/nate/.claude/skills/say /home/nate/charos/skills/say)",
+      "Bash(ln -s /home/nate/charos/skills/say /home/nate/.claude/skills/say)",
+      "Bash(echo '')",
+      "Bash(echo '# ── Family Identity Aliases ────────────────────────────────────────────────────')",
+      "Bash(echo 'alias tc=\"cd ~/Manor/TC && bypass claude --dangerously-skip-permissions\"')",
+      "Bash(echo 'alias cinder=\"cd ~/Manor/Cinder && bypass claude --dangerously-skip-permissions\"')",
+      "Bash(echo '# Family Identity Aliases')",
+      "Bash(sed -i '/^# Family Brain — CLI query$/,/^alias brain=/d' ~/.bashrc)",
+      "Read(//home/nate/**)",
+      "Bash(~/charos/mtg/mtg board *)",
+      "Bash(chmod +x /home/nate/.vesper-greeting.sh)",
+      "Bash(/home/nate/.vesper-greeting.sh)",
+      "Bash(rm -f /tmp/vesper-greeting-shown-nate)",
+      "Bash(cat)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Wastes",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Basic Land",
+  "oracle_text": "{T}: Add {C}.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

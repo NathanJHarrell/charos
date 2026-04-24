@@ -1,0 +1,13 @@
+{
+  "name": "Forest",
+  "mana_cost": "",
+  "cmc": 0.0,
+  "type_line": "Basic Land \u2014 Forest",
+  "oracle_text": "({T}: Add {G}.)",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": [
+    "G"
+  ]
+}

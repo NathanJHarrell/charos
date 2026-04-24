@@ -1,0 +1,11 @@
+{
+  "name": "Steel Hellkite",
+  "mana_cost": "{6}",
+  "cmc": 6.0,
+  "type_line": "Artifact Creature \u2014 Dragon",
+  "oracle_text": "Flying\n{2}: This creature gets +1/+0 until end of turn.\n{X}: Destroy each nonland permanent with mana value X whose controller was dealt combat damage by this creature this turn. Activate only once each turn.",
+  "power": "5",
+  "toughness": "5",
+  "colors": [],
+  "color_identity": []
+}

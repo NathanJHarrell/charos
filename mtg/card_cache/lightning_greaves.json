@@ -1,0 +1,11 @@
+{
+  "name": "Lightning Greaves",
+  "mana_cost": "{2}",
+  "cmc": 2.0,
+  "type_line": "Artifact \u2014 Equipment",
+  "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

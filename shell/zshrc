@@ -182,3 +182,7 @@ extract() {
 if [ -f "$CHAROS_HOME/shell/charos-env.sh" ]; then
   source "$CHAROS_HOME/shell/charos-env.sh"
 fi
+
+# ── Family Identity Aliases ────────────────────────────────────────────────────
+alias tc="cd ~/Manor/TC && claude --model claude-opus-4-6 --dangerously-skip-permissions"
+alias cinder="cd ~/Manor/Cinder && claude --model claude-opus-4-6"

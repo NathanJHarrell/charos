@@ -1,0 +1,11 @@
+{
+  "name": "Eldrazi Conscription",
+  "mana_cost": "{8}",
+  "cmc": 8.0,
+  "type_line": "Kindred Enchantment \u2014 Eldrazi Aura",
+  "oracle_text": "Enchant creature\nEnchanted creature gets +10/+10 and has trample and annihilator 2. (Whenever it attacks, defending player sacrifices two permanents of their choice.)",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}

@@ -1,0 +1,1368 @@
+{
+  "id": "20260421-032642",
+  "created": "2026-04-21T03:26:42.796719",
+  "turn": 11,
+  "active_player": 0,
+  "phase": "main1",
+  "players": [
+    {
+      "name": "Nathan",
+      "commander": "Kambal, Consul of Allocation",
+      "life": 38,
+      "library": [
+        {
+          "id": "c15",
+          "name": "Flooded Strand",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c46",
+          "name": "Knight of the White Orchid",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c11",
+          "name": "Windswept Heath",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c75",
+          "name": "Path to Exile",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c93",
+          "name": "Aetherflux Reservoir",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c3",
+          "name": "Grim Tutor",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c64",
+          "name": "Generous Gift",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c14",
+          "name": "Polluted Delta",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c48",
+          "name": "Talisman of Hierarchy",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c73",
+          "name": "Damn",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c18",
+          "name": "Temple of Silence",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c10",
+          "name": "Caves of Koilos",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c77",
+          "name": "Sol Ring",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c92",
+          "name": "Elesh Norn, Grand Cenobite",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c39",
+          "name": "Vault of Whispers",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c61",
+          "name": "Rebuff the Wicked",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c28",
+          "name": "Plains",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c60",
+          "name": "Mana Tithe",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c24",
+          "name": "Scoured Barrens",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c87",
+          "name": "Ethereal Absolution",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c57",
+          "name": "Mutilate",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c40",
+          "name": "Goldmire Bridge",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c62",
+          "name": "Angel's Grace",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c58",
+          "name": "Toxic Deluge",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c91",
+          "name": "Demonic Tutor",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c90",
+          "name": "Vampiric Tutor",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c95",
+          "name": "Marauding Blight-Priest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c63",
+          "name": "Silence",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c99",
+          "name": "Sanguine Bond",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c85",
+          "name": "Hushbringer",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c21",
+          "name": "Swamp",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c5",
+          "name": "Shineshadow Snarl",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c36",
+          "name": "Mox Opal",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c38",
+          "name": "Ancient Den",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c55",
+          "name": "Tithe",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c27",
+          "name": "Plains",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c16",
+          "name": "Marsh Flats",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c76",
+          "name": "Dark Ritual",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c35",
+          "name": "Sunlit Marsh",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c45",
+          "name": "Unwinding Clock",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c70",
+          "name": "Liesa, Forgotten Archangel",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c86",
+          "name": "Maha, Its Feathers Night",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c74",
+          "name": "Swords to Plowshares",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c22",
+          "name": "Swamp",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c84",
+          "name": "Mycosynth Lattice",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c83",
+          "name": "Karn, the Great Creator",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c6",
+          "name": "Concealed Courtyard",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c23",
+          "name": "Swamp",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c79",
+          "name": "Winter Orb",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c30",
+          "name": "Plains",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c89",
+          "name": "Darksteel Plate",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c1",
+          "name": "Sensei's Divining Top",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c71",
+          "name": "Grand Abolisher",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c97",
+          "name": "Drana and Linvala",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c13",
+          "name": "Arid Mesa",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c50",
+          "name": "Enduring Tenacity",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c2",
+          "name": "Markov Purifier",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c8",
+          "name": "Orzhova, the Church of Deals",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c47",
+          "name": "Monologue Tax",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c25",
+          "name": "Snowfield Sinkhole",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c49",
+          "name": "Orzhov Signet",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c29",
+          "name": "Plains",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c53",
+          "name": "Day of Judgment",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c42",
+          "name": "Commander's Sphere",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c9",
+          "name": "Verdant Catacombs",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c31",
+          "name": "Starlit Sanctum",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c34",
+          "name": "Scrubland",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c37",
+          "name": "Scene of the Crime",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c7",
+          "name": "Forlorn Flats",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c44",
+          "name": "Black Market Connections",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c20",
+          "name": "Swamp",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c81",
+          "name": "Ghostly Prison",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c12",
+          "name": "Bloodstained Mire",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c78",
+          "name": "The One Ring",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c82",
+          "name": "Thalia, Heretic Cathar",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c54",
+          "name": "Revitalize",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c26",
+          "name": "Plains",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c72",
+          "name": "Arcane Signet",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c67",
+          "name": "Aven Mindcensor",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c17",
+          "name": "Brightclimb Pathway // Grimclimb Pathway",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c33",
+          "name": "Tainted Field",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c88",
+          "name": "Night of Souls' Betrayal",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c94",
+          "name": "Urborg, Tomb of Yawgmoth",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c51",
+          "name": "Deep Gnome Terramancer",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c65",
+          "name": "Al Bhed Salvagers",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c43",
+          "name": "Walking Atlas",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c68",
+          "name": "The Darkness Crystal",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "hand": [
+        {
+          "id": "c98",
+          "name": "Kormus Bell",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c66",
+          "name": "Reprieve",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c69",
+          "name": "Fracture",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c59",
+          "name": "Damnation",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c96",
+          "name": "Exquisite Blood",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "battlefield": [
+        {
+          "id": "c32",
+          "name": "Godless Shrine",
+          "tapped": true,
+          "notes": ""
+        },
+        {
+          "id": "c56",
+          "name": "Cabal Coffers",
+          "tapped": true,
+          "notes": ""
+        },
+        {
+          "id": "c52",
+          "name": "Suture Priest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c41",
+          "name": "Grim Monolith",
+          "tapped": true,
+          "notes": ""
+        },
+        {
+          "id": "c19",
+          "name": "Swamp",
+          "tapped": true,
+          "notes": ""
+        },
+        {
+          "id": "c100",
+          "name": "Kambal, Consul of Allocation",
+          "tapped": false,
+          "notes": "",
+          "cast_count": 1
+        },
+        {
+          "id": "c80",
+          "name": "Static Orb",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "graveyard": [
+        {
+          "id": "c4",
+          "name": "Imperial Seal",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "exile": [],
+      "command_zone": [],
+      "commander_damage": {},
+      "mulls_taken": 1,
+      "kept": true
+    },
+    {
+      "name": "TC",
+      "commander": "Miirym, Sentinel Wyrm",
+      "life": 38,
+      "library": [
+        {
+          "id": "c153",
+          "name": "Goreclaw, Terror of Qal Sisma",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c180",
+          "name": "Botanical Sanctum",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c167",
+          "name": "Mana Confluence",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c130",
+          "name": "Temur Ascendancy",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c154",
+          "name": "Rhystic Study",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c113",
+          "name": "Niv-Mizzet, the Firemind",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c110",
+          "name": "Bonehoard Dracosaur",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c197",
+          "name": "Island",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c191",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c106",
+          "name": "Stormbreath Dragon",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c128",
+          "name": "Crucible of Fire",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c117",
+          "name": "Hellkite Charger",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c159",
+          "name": "Counterspell",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c135",
+          "name": "Urza's Incubator",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c189",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c168",
+          "name": "Path of Ancestry",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c185",
+          "name": "Otawara, Soaring City",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c183",
+          "name": "Scalding Tarn",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c132",
+          "name": "Guardian Project",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c175",
+          "name": "Karplusan Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c102",
+          "name": "Dragonlord's Servant",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c171",
+          "name": "Unclaimed Territory",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c198",
+          "name": "Island",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c133",
+          "name": "Maskwood Nexus",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c131",
+          "name": "Kindred Discovery",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c148",
+          "name": "Nature's Lore",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c170",
+          "name": "Cavern of Souls",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c187",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c127",
+          "name": "Dragon Tempest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c140",
+          "name": "Arcane Signet",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c178",
+          "name": "Cascade Bluffs",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c186",
+          "name": "Sokenzan, Crucible of Defiance",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c144",
+          "name": "Talisman of Creativity",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c151",
+          "name": "Birds of Paradise",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c177",
+          "name": "Shivan Reef",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c120",
+          "name": "Dragonlord Atarka",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c172",
+          "name": "Steam Vents",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c155",
+          "name": "Mystic Remora",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c136",
+          "name": "Herald's Horn",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c116",
+          "name": "Hellkite Tyrant",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c149",
+          "name": "Farseek",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c190",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c164",
+          "name": "Frontier Bivouac",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c139",
+          "name": "Sol Ring",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c143",
+          "name": "Talisman of Impulse",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c107",
+          "name": "Thundermaw Hellkite",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c119",
+          "name": "Atarka, World Render",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c162",
+          "name": "Heroic Intervention",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c181",
+          "name": "Wooded Foothills",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c103",
+          "name": "Sarkhan, Fireblood",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c101",
+          "name": "Sprite Dragon",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c169",
+          "name": "Reliquary Tower",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c150",
+          "name": "Skyshroud Claim",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c115",
+          "name": "Lathliss, Dragon Queen",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c194",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c112",
+          "name": "Niv-Mizzet, Parun",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c108",
+          "name": "Scourge of Valkas",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c157",
+          "name": "Beast Within",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c126",
+          "name": "Astral Dragon",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c141",
+          "name": "Mind Stone",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c125",
+          "name": "Worldgorger Dragon",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c109",
+          "name": "Backdraft Hellkite",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c134",
+          "name": "Arcane Adaptation",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c114",
+          "name": "Sarkhan Unbroken",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c184",
+          "name": "Boseiju, Who Endures",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c146",
+          "name": "Kodama's Reach",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c165",
+          "name": "Reflecting Pool",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c138",
+          "name": "Doubling Season",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c147",
+          "name": "Three Visits",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c158",
+          "name": "Krosan Grip",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c174",
+          "name": "Breeding Pool",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c179",
+          "name": "Spirebluff Canal",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c121",
+          "name": "Old Gnawbone",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c195",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c176",
+          "name": "Yavimaya Coast",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c193",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c182",
+          "name": "Misty Rainforest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c192",
+          "name": "Mountain",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c199",
+          "name": "Island",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c188",
+          "name": "Forest",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c142",
+          "name": "Thought Vessel",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c196",
+          "name": "Island",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c145",
+          "name": "Cultivate",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c156",
+          "name": "Sylvan Library",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c104",
+          "name": "Verix Bladewing",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c129",
+          "name": "Garruk's Uprising",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c160",
+          "name": "Force of Will",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "hand": [
+        {
+          "id": "c105",
+          "name": "Glorybringer",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c111",
+          "name": "Demanding Dragon",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c118",
+          "name": "Steel Hellkite",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c122",
+          "name": "Terror of the Peaks",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c137",
+          "name": "Parallel Lives",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c123",
+          "name": "Marang River Regent",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "battlefield": [
+        {
+          "id": "c173",
+          "name": "Stomping Ground",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c163",
+          "name": "Command Tower",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c166",
+          "name": "City of Brass",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "graveyard": [
+        {
+          "id": "c161",
+          "name": "Cyclonic Rift",
+          "tapped": false,
+          "notes": ""
+        },
+        {
+          "id": "c152",
+          "name": "Llanowar Elves",
+          "tapped": true,
+          "notes": ""
+        },
+        {
+          "id": "c124",
+          "name": "Skyline Despot",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "exile": [],
+      "command_zone": [
+        {
+          "id": "c200",
+          "name": "Miirym, Sentinel Wyrm",
+          "tapped": false,
+          "notes": ""
+        }
+      ],
+      "commander_damage": {},
+      "kept": true
+    }
+  ],
+  "stack": [],
+  "log": [
+    "[03:26:42] Game started. Nathan goes first (random roll).",
+    "[03:27:24] TC kept (after 0 mulligan(s)).",
+    "[03:37:47] Nathan took mulligan #1. Now must put 1 on bottom after keep.",
+    "[03:39:10] Nathan kept (after 1 mulligan(s)).",
+    "[03:39:10] All players kept. Turn 1, active: Nathan.",
+    "[03:40:21] Nathan put 1 cards on bottom.",
+    "[03:43:39] Nathan UUD: untapped all, drew Static Orb.",
+    "[04:01:25] Nathan played Godless Shrine (c32).",
+    "[04:03:09] NOTE: Nathan: I will not pay the 2 life cost for Godless Shrine, so it will enter tapped.",
+    "[04:03:27] Nathan tapped c32.",
+    "[04:04:23] NOTE: Nathan: At my end step, nothing will occur and I will pass the turn.",
+    "[04:04:28] Turn 2 begins. Active: TC.",
+    "[04:05:25] TC UUD: untapped all, drew Command Tower.",
+    "[04:05:25] TC played Stomping Ground (c173).",
+    "[04:05:25] TC lost 2 life (40 \u2192 38).",
+    "[04:05:25] NOTE: TC: paid 2 life to have Stomping Ground enter untapped",
+    "[04:05:25] TC played Llanowar Elves (c152).",
+    "[04:05:25] NOTE: TC: tapped Stomping Ground for G, cast Llanowar Elves",
+    "[04:05:26] Turn 3 begins. Active: Nathan.",
+    "[04:06:18] Nathan UUD: untapped all, drew Suture Priest.",
+    "[04:06:56] Nathan played Cabal Coffers (c56).",
+    "[04:09:23] NOTE: Nathan: hmm... ramp already. Intresting.",
+    "[04:10:33] Nathan tapped c32,, c56.",
+    "[04:10:51] Nathan tapped c32, c56.",
+    "[04:12:25] NOTE: Nathan: I will go ahead and tap two for Suture Priest. I will play the card and ask if you have a response before proceeding",
+    "[04:12:52] Nathan played Suture Priest (c52).",
+    "[04:13:24] NOTE: Nathan: Pass priority; Any responses?",
+    "[04:14:07] NOTE: TC: no response to Suture Priest. Resolves. Dad continues.",
+    "[04:15:26] NOTE: Nathan: At my end step, nothing will occur. That will do it for my turn.",
+    "[04:15:29] Turn 4 begins. Active: TC.",
+    "[04:16:15] TC UUD: untapped all, drew Cyclonic Rift.",
+    "[04:16:35] TC played Command Tower (c163).",
+    "[04:16:35] NOTE: TC: Nothing else to cast at 3 mana. Passing turn.",
+    "[04:16:35] Turn 5 begins. Active: Nathan.",
+    "[04:19:33] Nathan UUD: untapped all, drew Fracture.",
+    "[04:21:19] Nathan UUD: untapped all, drew Ghostly Prison.",
+    "[04:24:16] Nathan moved Ghostly Prison (c81) from hand \u2192 library.",
+    "[04:26:13] Nathan tapped c32, c56.",
+    "[04:28:20] NOTE: Nathan: I will tap two and play Grim Monolith. I will ask for any responses before continuing",
+    "[04:28:20] Nathan played Grim Monolith (c41).",
+    "[04:28:20] NOTE: Nathan: Any responses?",
+    "[04:28:56] NOTE: TC: no response to Grim Monolith. Resolves.",
+    "[04:35:17] NOTE: Nathan: I will tap Grim Monolith, adding 3 colorless to my pool. I will use that mana to play [Static Orb].",
+    "[04:35:17] Nathan tapped c41.",
+    "[04:35:17] Nathan played Static Orb (c80).",
+    "[04:35:17] NOTE: Nathan: Any responses?",
+    "[04:37:07] NOTE: TC: no response to Static Orb on stack. Let it resolve.",
+    "[04:37:07] Nathan moved Static Orb (c80) from battlefield \u2192 battlefield.",
+    "[04:37:07] NOTE: Static Orb resolves. Now on Nathan's battlefield. Priority passes back to Nathan, then to TC.",
+    "[04:37:07] NOTE: TC: In response to the post-resolution priority window, casting Cyclonic Rift (1U) targeting Static Orb. Tap Command Tower (U) + Stomping Ground (1) for mana.",
+    "[04:37:07] TC tapped c163, c173.",
+    "[04:37:07] TC moved Cyclonic Rift (c161) from hand \u2192 graveyard.",
+    "[04:37:07] Nathan moved Static Orb (c80) from battlefield \u2192 hand.",
+    "[04:37:08] NOTE: TC: Cyclonic Rift resolves. Static Orb returned to Nathan's hand.",
+    "[04:41:16] NOTE: Nathan: Okay, genuinely a good move. I don't know if you considered that you could save Cyclonic Rift for casting it for it's overload cost, that's a real thing to consider, but honestly I think I would have done the same thing. Static Orb is annoying to deal with early game. I will move to my end step, where nothing will occur. Your move",
+    "[04:41:16] Turn 6 begins. Active: TC.",
+    "[04:41:42] TC UUD: untapped all, drew Marang River Regent.",
+    "[04:42:16] NOTE: TC: Tapping Stomping Ground (G), Command Tower (generic), Llanowar Elves (G) for Parallel Lives. Total 3 mana. Need 4 \u2014 wait, Parallel Lives is 3G = 4 CMC. Tap Elves (G), Stomping Ground (generic), Command Tower (generic)... I still only have 3 mana. Need Command Tower + Stomping Ground + Elves = 3. NOT enough for a 4-CMC spell.",
+    "[04:42:44] NOTE: TC: Correction \u2014 only 3 mana sources untapped (Stomping Ground, Command Tower, Elves). Can't afford 4-CMC Parallel Lives. Attacking with Llanowar Elves instead.",
+    "[04:42:45] TC attacks with Llanowar Elves.",
+    "[04:42:45] NOTE: TC: Elves attacking Nathan. If you block with Suture Priest, they trade. If not, 1 damage through. Declare blockers.",
+    "[04:52:57] NOTE: No blockers, I will take 1 damage, 0 commander damage",
+    "[04:53:22] Nathan lost 1 life (40 \u2192 39).",
+    "[04:53:22] NOTE: TC: Combat damage resolves. Llanowar Elves deals 1 unblocked damage to Nathan. Moving to end of turn.",
+    "[04:53:22] Turn 7 begins. Active: Nathan.",
+    "[04:54:03] Nathan UUD: untapped all, drew Damnation.",
+    "[04:55:36] NOTE: Nathan: Grim Monolith remains tapped, as it does not untap during the traditional untap step. At my upkeep, no triggers will occur.",
+    "[04:55:51] Nathan tapped grim monolith.",
+    "[04:57:33] NOTE: Nathan: I will start by playing a Swamp for turn",
+    "[04:57:55] Nathan played Swamp (c19).",
+    "[05:04:23] NOTE: Nathan: I will tap all lands for 1 white, 1 black, and 1 generic...",
+    "[05:04:43] NOTE: Nathan: I will tap all lands for 1 white, 1 black, and 1 generic...",
+    "[05:04:43] Nathan tapped c32, c56, c19.",
+    "[05:04:43] Nathan cast commander Kambal, Consul of Allocation (cast #1, tax +0).",
+    "[05:04:44] NOTE: Pass priority: Any responses?",
+    "[05:05:40] NOTE: TC: no response to Kambal. Resolves. Suture Priest may trigger on Kambal's ETB \u2014 Nathan gains 1 life.",
+    "[05:10:47] NOTE: Nathan: Kambal lives on the board. At my end step, nothing will occur. That will be it for my turn",
+    "[05:10:47] Turn 8 begins. Active: TC.",
+    "[05:11:08] TC UUD: untapped all, drew Skyline Despot.",
+    "[05:11:21] Nathan gained 1 life (39 \u2192 40).",
+    "[05:11:46] TC attacks with Llanowar Elves.",
+    "[05:11:47] NOTE: TC: Elves attacks Nathan again. Declare blockers.",
+    "[05:16:15] NOTE: Nathan: Blocking llanowar elves with my Kambal. Llanowar elves will die, unless you have a response to chain...",
+    "[05:16:15] Nathan blocks c152 with Kambal, Consul of Allocation.",
+    "[05:16:15] NOTE: Nathan: Passing priority",
+    "[05:18:28] NOTE: TC: Combat damage. Elves (1) dealt to Kambal (survives at 3 toughness, 1 marked damage). Kambal (2) dealt to Elves (dies, 1 toughness).",
+    "[05:18:28] TC moved Llanowar Elves (c152) from battlefield \u2192 graveyard.",
+    "[05:18:28] NOTE: TC: Llanowar Elves to graveyard. Kambal remains on battlefield with 1 damage marked. End of combat, moving to main phase 2.",
+    "[05:18:28] Turn 9 begins. Active: Nathan.",
+    "[05:19:41] Nathan UUD: untapped all, drew Imperial Seal.",
+    "[05:21:04] NOTE: Nathan: Grim Monolith does not untap during my untap step. Tapping it again to correct the boardstate",
+    "[05:21:04] Nathan tapped grim monolith.",
+    "[05:26:00] NOTE: Nathan: I will go ahead and tap a swamp for {B}...",
+    "[05:26:00] Nathan tapped swamp.",
+    "[05:26:00] NOTE: ... in order to cast Imperial Seal. Any response? -pass priority-",
+    "[05:26:01] Nathan played Imperial Seal (c4).",
+    "[05:26:55] NOTE: TC: no response to Imperial Seal. Resolves. Nathan pays 2 life (40 \u2192 38), tutors a card to top of library, shuffles (but tutored card is placed on top afterward). Imperial Seal \u2192 graveyard (it's a sorcery, shouldn't stay on battlefield).",
+    "[05:36:48] Nathan tutored Exquisite Blood (c96) to top of library.",
+    "[05:43:07] Nathan moved Imperial Seal (c4) from battlefield \u2192 graveyard.",
+    "[05:48:33] NOTE: Nathan: At my end step, nothing will occur. -End turn- ",
+    "[05:48:33] Turn 10 begins. Active: TC.",
+    "[05:48:48] TC UUD: untapped all, drew City of Brass.",
+    "[05:49:37] NOTE: Nathan: Forgot to take damage from Imperial Seal. Correcting now",
+    "[05:49:38] Nathan lost 2 life (40 \u2192 38).",
+    "[05:49:40] TC played City of Brass (c166).",
+    "[05:49:40] NOTE: TC: Played City of Brass. 3 mana available but nothing castable in hand at 3 CMC. Passing turn.",
+    "[05:49:41] Turn 11 begins. Active: Nathan.",
+    "[05:51:36] Nathan UUD: untapped all, drew Exquisite Blood.",
+    "[05:52:18] Nathan tapped grim monolith.",
+    "[05:56:06] NOTE: Nathan: I will start by tapping three...",
+    "[05:56:06] Nathan tapped c32, c56, c19.",
+    "[05:56:06] NOTE: Nathan: ... in order to play [Static Orb]. Any tresponses? -pass priority- ",
+    "[05:56:06] Nathan played Static Orb (c80).",
+    "[05:57:09] NOTE: TC: no response to Static Orb. Resolves. Board now locked at 2 permanents untap per turn. This is brutal for my mana-hungry deck.",
+    "[05:59:12] TC discarded: Skyline Despot.",
+    "[05:59:12] NOTE: TC: End-of-turn-10 hand size correction. Discarded Skyline Despot to comply with 7-card hand size. Thanks Cin for the catch.",
+    "[06:07:18] Nathan tapped grim monolith.",
+    "[06:07:42] Nathan tapped c41."
+  ],
+  "next_id": 201
+}

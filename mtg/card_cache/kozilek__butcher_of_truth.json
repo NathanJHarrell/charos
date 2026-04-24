@@ -1,0 +1,11 @@
+{
+  "name": "Kozilek, Butcher of Truth",
+  "mana_cost": "{10}",
+  "cmc": 10.0,
+  "type_line": "Legendary Creature \u2014 Eldrazi",
+  "oracle_text": "When you cast this spell, draw four cards.\nAnnihilator 4 (Whenever this creature attacks, defending player sacrifices four permanents of their choice.)\nWhen Kozilek is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.",
+  "power": "12",
+  "toughness": "12",
+  "colors": [],
+  "color_identity": []
+}

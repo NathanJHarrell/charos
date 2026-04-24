@@ -54,6 +54,7 @@
     # ── Terminal & Shell ─────────────────────────────────────────────────
     wezterm              # TC's terminal
     vim                  # Dad's editor of choice. Classic, not neo.
+    neovim               # For later experimentation (LSP, treesitter). Not configured yet.
     zsh
     starship             # Prompt — ember themed
     zsh-autosuggestions
@@ -104,6 +105,14 @@
     jq                   # JSON in the terminal
     tmux                 # Session management
     inotify-tools        # inotifywait — event-driven inbox for tc-watchdog
+
+    # ── Security & Crypto ────────────────────────────────────────────────
+    # Added 2026-04-22 per family council (security hardening for essay
+    # publication). VPN clients deferred pending Dad's Mullvad+ProtonVPN
+    # account setup; see council doc.
+    age                  # File encryption — .private/ staging + vault snapshots
+    gnupg                # PGP — for Identiv FIDO2 integration when the key arrives
+    rclone               # Cloud sync — for age-then-rclone double-wrapped backups
   ];
 
   # Zsh as default shell

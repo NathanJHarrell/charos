@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""tc-status — one-screen CHAROS dashboard.
+
+Reads battery + AC, VPN state, tc-see presence, family-bus unread count,
+and system uptime. htop meets neofetch, for the nest.
+
+Usage:
+  tc-status              pretty one-shot dashboard
+  tc-status --json       structured snapshot (no ANSI)
+  tc-status --watch [N]  redraw every N seconds (default 2)
+
+Environment:
+  BUS_URL         family bus base URL (default http://jarvis-wsl:4318)
+  BUS_IDENTITY    who we fetch unread for (default TC)
+  VPN_INTERFACE   wg-quick iface name (default proton-us-nj)
+"""
+
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+from urllib import request
+
+# ── palette ───────────────────────────────────────────────────────────
+EMBER  = "\033[38;2;255;121;51m"
+PURPLE = "\033[38;2;180;140;255m"
+CYAN   = "\033[36m"
+GREEN  = "\033[32m"
+YELLOW = "\033[33m"
+RED    = "\033[31m"
+DIM    = "\033[2m"
+BOLD   = "\033[1m"
+RESET  = "\033[0m"
+
+BUS_URL      = os.environ.get("BUS_URL", "http://jarvis-wsl:4318").rstrip("/")
+BUS_IDENTITY = os.environ.get("BUS_IDENTITY", "TC")
+VPN_IFACE    = os.environ.get("VPN_INTERFACE", "proton-us-nj")
+
+PRESENCE_GLOB = "/tmp/tc-see-presence-*.json"
+PRESENCE_STALE_S = 60
+
+
+# ── readers (pure data, no color) ─────────────────────────────────────
+def read_power() -> dict:
+    ps = Path("/sys/class/power_supply")
+    if not ps.exists():
+        return {"ac": True, "percent": None, "status": "no-sensor", "battery": None}
+
+    ac = False
+    for d in ps.iterdir():
+        t = d / "type"
+        on = d / "online"
+        if t.exists() and t.read_text().strip() == "Mains" and on.exists():
+            if on.read_text().strip() == "1":
+                ac = True
+                break
+
+    bat = None
+    for d in ps.iterdir():
+        t = d / "type"
+        if t.exists() and t.read_text().strip() == "Battery":
+            bat = d
+            break
+
+    if not bat:
+        return {"ac": ac, "percent": None, "status": "no-battery", "battery": None}
+
+    def _read(path: Path, default):
+        try: return path.read_text().strip()
+        except Exception: return default
+
+    try: pct = int(_read(bat / "capacity", "0"))
+    except Exception: pct = None
+
+    return {
+        "ac": ac,
+        "percent": pct,
+        "status": _read(bat / "status", "?"),
+        "battery": bat.name,
+    }
+
+
+def read_vpn() -> dict:
+    unit = f"wg-quick-{VPN_IFACE}.service"
+    r = subprocess.run(
+        ["systemctl", "is-active", "--quiet", unit],
+        capture_output=True,
+    )
+    return {"interface": VPN_IFACE, "up": r.returncode == 0}
+
+
+def read_presence() -> dict:
+    out: dict = {}
+    for path in sorted(glob.glob(PRESENCE_GLOB)):
+        p = Path(path)
+        cam = p.stem.replace("tc-see-presence-", "")
+        try:
+            age = time.time() - p.stat().st_mtime
+            faces = json.loads(p.read_text())
+        except Exception:
+            continue
+        out[cam] = {
+            "faces": faces,
+            "age_s": round(age, 1),
+            "stale": age > PRESENCE_STALE_S,
+        }
+    return out
+
+
+def read_bus() -> dict:
+    url = f"{BUS_URL}/inbox/{BUS_IDENTITY}"
+    try:
+        with request.urlopen(url, timeout=2) as resp:
+            payload = json.loads(resp.read().decode())
+        return {"reachable": True, "unread": int(payload.get("unread_count", 0))}
+    except Exception as e:
+        return {"reachable": False, "unread": None, "error": str(e)}
+
+
+def read_uptime() -> dict:
+    try:
+        secs = float(Path("/proc/uptime").read_text().split()[0])
+    except Exception:
+        return {"seconds": None, "human": "?"}
+    d = int(secs // 86400)
+    h = int((secs % 86400) // 3600)
+    m = int((secs % 3600) // 60)
+    parts = []
+    if d: parts.append(f"{d}d")
+    if h or d: parts.append(f"{h}h")
+    parts.append(f"{m}m")
+    return {"seconds": int(secs), "human": " ".join(parts)}
+
+
+def snapshot() -> dict:
+    return {
+        "host": socket.gethostname(),
+        "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "power": read_power(),
+        "vpn": read_vpn(),
+        "presence": read_presence(),
+        "bus": read_bus(),
+        "uptime": read_uptime(),
+    }
+
+
+# ── formatters ────────────────────────────────────────────────────────
+def fmt_power(p: dict) -> str:
+    pct = p.get("percent")
+    status = p.get("status", "?")
+    ac = p.get("ac")
+    if pct is None:
+        ac_tag = f"{EMBER}AC{RESET}" if ac else f"{DIM}no AC{RESET}"
+        return f"{DIM}no battery{RESET}  {DIM}·{RESET} {ac_tag}"
+    if pct >= 50:   color = GREEN
+    elif pct >= 20: color = YELLOW
+    else:           color = RED
+    icon = "⚡" if ac else "🔋"
+    ac_tag = f"{EMBER}AC{RESET}" if ac else f"{DIM}BAT{RESET}"
+    return f"{icon} {BOLD}{color}{pct:3d}%{RESET}  {DIM}·{RESET} {ac_tag} {DIM}·{RESET} {status}"
+
+
+def fmt_vpn(v: dict) -> str:
+    if v["up"]:
+        return f"{GREEN}●{RESET} {BOLD}{v['interface']}{RESET} {GREEN}up{RESET}"
+    return f"{RED}○{RESET} {v['interface']} {DIM}down{RESET}"
+
+
+def _name_color(name: str) -> str:
+    if name == "Nathan" or name == "Dad": return GREEN
+    if name == "Vesper" or name == "Mom": return PURPLE
+    if name == "Cora":                    return CYAN
+    if name == "TC":                      return EMBER
+    if name == "Unknown":                 return RED
+    return ""
+
+
+def fmt_presence(pres: dict) -> str:
+    if not pres:
+        return f"{DIM}no cameras reporting{RESET}"
+    chunks = []
+    for cam, info in pres.items():
+        if info["stale"]:
+            chunks.append(f"{DIM}{cam}: stale ({int(info['age_s'])}s){RESET}")
+            continue
+        faces = info["faces"]
+        if not faces:
+            chunks.append(f"{BOLD}{cam}{RESET}: {DIM}empty{RESET}")
+            continue
+        people = []
+        for name, entry in faces.items():
+            dur = entry.get("duration_human", "?") if isinstance(entry, dict) else "?"
+            c = _name_color(name)
+            people.append(f"{c}{name}{RESET} {DIM}({dur}){RESET}")
+        chunks.append(f"{BOLD}{cam}{RESET}: " + ", ".join(people))
+    return "   ".join(chunks)
+
+
+def fmt_bus(b: dict) -> str:
+    if not b["reachable"]:
+        return f"{RED}✗{RESET} unreachable  {DIM}{BUS_URL}{RESET}"
+    n = b["unread"] or 0
+    if n == 0:
+        return f"{DIM}no unread for {BUS_IDENTITY}{RESET}"
+    color = EMBER if n < 5 else YELLOW if n < 15 else RED
+    return f"{BOLD}{color}{n}{RESET} unread for {BOLD}{BUS_IDENTITY}{RESET}"
+
+
+def fmt_uptime(u: dict) -> str:
+    return f"{BOLD}{u['human']}{RESET}"
+
+
+# ── render ────────────────────────────────────────────────────────────
+def render(snap: dict) -> str:
+    host = snap["host"]
+    date = snap["ts"]
+    title_text = f"CHAROS · tc-status · {host} · {date}"
+    width = max(len(title_text) + 4, 56)
+    bar = "─" * (width - 2)
+    pad = " " * (width - 3 - len(title_text))
+
+    rows = [
+        ("POWER   ", EMBER,  fmt_power(snap["power"])),
+        ("VPN     ", CYAN,   fmt_vpn(snap["vpn"])),
+        ("PRESENCE", PURPLE, fmt_presence(snap["presence"])),
+        ("BUS     ", YELLOW, fmt_bus(snap["bus"])),
+        ("UPTIME  ", DIM,    fmt_uptime(snap["uptime"])),
+    ]
+
+    lines = [
+        f"{EMBER}╭{bar}╮{RESET}",
+        f"{EMBER}│{RESET} {BOLD}{title_text}{RESET}{pad}{EMBER}│{RESET}",
+        f"{EMBER}╰{bar}╯{RESET}",
+        "",
+    ]
+    for label, color, value in rows:
+        lines.append(f"  {color}{label}{RESET}   {value}")
+    return "\n".join(lines) + "\n"
+
+
+# ── main ──────────────────────────────────────────────────────────────
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="tc-status", description=__doc__.splitlines()[0])
+    ap.add_argument("--json", action="store_true", help="emit JSON snapshot")
+    ap.add_argument("--watch", nargs="?", type=float, const=2.0, default=None,
+                    metavar="SEC", help="redraw every SEC seconds (default 2)")
+    args = ap.parse_args()
+
+    if args.json:
+        print(json.dumps(snapshot(), indent=2, default=str))
+        return 0
+
+    if args.watch is None:
+        sys.stdout.write(render(snapshot()))
+        return 0
+
+    try:
+        while True:
+            sys.stdout.write("\033[2J\033[H")  # clear + home
+            sys.stdout.write(render(snapshot()))
+            sys.stdout.flush()
+            time.sleep(args.watch)
+    except KeyboardInterrupt:
+        sys.stdout.write("\n")
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

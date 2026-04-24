@@ -1,0 +1,15 @@
+{
+  "name": "Feldon of the Third Path",
+  "mana_cost": "{1}{R}{R}",
+  "cmc": 3.0,
+  "type_line": "Legendary Creature \u2014 Human Artificer",
+  "oracle_text": "{2}{R}, {T}: Create a token that's a copy of target creature card in your graveyard, except it's an artifact in addition to its other types. It gains haste. Sacrifice it at the beginning of the next end step.",
+  "power": "2",
+  "toughness": "3",
+  "colors": [
+    "R"
+  ],
+  "color_identity": [
+    "R"
+  ]
+}

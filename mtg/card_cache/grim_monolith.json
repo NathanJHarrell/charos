@@ -1,0 +1,11 @@
+{
+  "name": "Grim Monolith",
+  "mana_cost": "{2}",
+  "cmc": 2.0,
+  "type_line": "Artifact",
+  "oracle_text": "This artifact doesn't untap during your untap step.\n{T}: Add {C}{C}{C}.\n{4}: Untap this artifact.",
+  "power": "",
+  "toughness": "",
+  "colors": [],
+  "color_identity": []
+}
