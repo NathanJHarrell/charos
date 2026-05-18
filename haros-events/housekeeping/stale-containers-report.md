@@ -56,7 +56,7 @@ No risk to the `family-*` stack: no shared images, no shared volumes, no network
 
 **~5 min total.** One Dad-confirmation question on the shophosting dev volume, then:
 
-```
+```bash
 docker rm c1 optimistic_edison friendly_mestorf
 docker rmi pm-bot:latest bot2.py:latest 1082a97ea808
 docker builder prune --filter until=720h
