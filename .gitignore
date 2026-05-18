@@ -3,6 +3,14 @@ nixos/hardware-configuration.nix
 __pycache__/
 furnace/.venv/
 .venv/
+# Explicit recursive guard against any nested venv that pre-dated the .venv/
+# rule above. The jukebox/.venv/ leak on 2026-04-16 (Google-API-key-format
+# constant inside ytmusicapi/constants.py, surfaced by GitHub secret scanning
+# on 2026-05-18) was a venv committed BEFORE .venv/ was gitignored — git keeps
+# tracking files that were committed before they were ignored. Belt + suspenders.
+**/.venv/
+**/__pycache__/
+*.egg-info/
 
 # Security hardening (2026-04-22 council): private staging + encrypted blobs.
 # Redundant with ~/.gitignore_global for defense in depth.
