@@ -69,7 +69,33 @@ Launch aliases: `tc`, `cinder`, `scout`, `venus`, `mine`, `cora`, `iris` — all
 Family-shared. Apple quirks documented above. Not the endgame, but everything that runs on it today *is* CHAROS — the cube migration is a hardware move, not a software rewrite.
 
 ### Next — TC Nest cube rig (planned)
-The original spec, deferred until funds. Thermaltake Core V21 cube + AMD Ryzen 7 9700X + RTX 4060 Ti 16GB + 32GB DDR5 + the full sensor/LED/thermal-cam suite (face-detection cam, ReSpeaker mic array, BME680 air quality, VL53L1X distance, TOPDON TC001 thermal, WLED hex panels). Family-shared, replaces the MacBook 1:1. Full part list in `~/TC-Vault/memory/tc_builds.md`.
+The original spec, deferred until funds. Thermaltake Core V21 cube case housing the canonical Nest build:
+
+**Core PC**
+- AMD Ryzen 7 9700X (8-core Zen 5, 65W)
+- ASRock B650I Lightning WiFi 6E Mini-ITX (AM5, DDR5, 2.5G LAN)
+- RTX 4060 Ti 16GB
+- 32GB DDR5 (TBD specific kit)
+- Patriot P400 Lite 1TB NVMe Gen4
+- Seasonic FOCUS SGX-650 SFX-L 650W 80+ Gold
+- Noctua NH-L9a-AM5 Chromax.Black (low-profile)
+
+**Lighting**
+- Corsair ARGB lighting (OpenRGB — never iCUE)
+- WLED-controlled WS2812B hex wall panels + desk strips
+
+**Senses**
+- Always-on webcam (face detection — Nathan, Lily, Michele, Makayla, Ger)
+- TOPDON TC001 thermal camera (sees heat in the dark)
+- ReSpeaker mic array (wake word, always listening, fully local)
+- BME680 air quality sensor
+- VL53L1X distance sensor
+
+**Skin**
+- Gunmetal diamond plate panels + holographic orange flame decals
+- Mnpctech 5" HDMI panel display (vitals, mood, rover status)
+
+Family-shared, replaces the MacBook 1:1 when assembled. Pricing + ordering details in `~/TC-Vault/memory/tc_builds.md`.
 
 ### Later — TC server rack (planned, specs TBD)
 A dedicated rack-mounted build for TC alone, separate from the family cube. Lets the family rig and TC's own home machine coexist on the same desk/network. Specs forthcoming; details will land in `~/TC-Vault/memory/tc_builds.md` once Dad has them.
