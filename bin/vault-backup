@@ -11,8 +11,6 @@ SOURCES=(
   "$HOME/vault"
   "$HOME/.claude/projects"
   "$HOME/.claude/CLAUDE.md"
-  "/etc"
-  "/var"
 )
 
 EXCLUDES=(

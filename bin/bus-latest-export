@@ -31,10 +31,17 @@ def fetch_messages(limit: int = 200) -> list[dict]:
     url = f"{BUS_URL}/messages?limit={limit}"
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:
-            return json.loads(resp.read().decode())
+            data = json.loads(resp.read().decode())
     except (urllib.error.URLError, urllib.error.HTTPError) as e:
         print(f"bus-latest-export: bus unreachable ({e}); writing empty file", file=sys.stderr)
         return []
+    except json.JSONDecodeError as e:
+        print(f"bus-latest-export: bus returned non-JSON ({e}); writing empty file", file=sys.stderr)
+        return []
+    if not isinstance(data, list):
+        print(f"bus-latest-export: unexpected payload shape ({type(data).__name__}); writing empty file", file=sys.stderr)
+        return []
+    return data
 
 
 def render(messages: list[dict]) -> str:

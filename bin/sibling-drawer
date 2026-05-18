@@ -42,19 +42,32 @@ def sway(*args: str) -> str:
     return subprocess.run(["swaymsg", *args], capture_output=True, text=True, check=False).stdout
 
 
-def find_marked(mark: str) -> dict | None:
+def find_drawer(mark: str, app_id: str) -> dict | None:
+    """Find by mark first, then by app_id. If an orphan (app_id matches but
+    no mark) is found, mark it on the fly so subsequent calls find it by mark.
+    Mirrors the resilient pattern in htop-drawer."""
     tree = json.loads(sway("-t", "get_tree"))
 
-    def walk(node):
-        if mark in (node.get("marks") or []):
-            return node
-        for child in node.get("nodes", []) + node.get("floating_nodes", []):
-            r = walk(child)
-            if r is not None:
-                return r
-        return None
+    marked: dict | None = None
+    by_appid: dict | None = None
 
-    return walk(tree)
+    def walk(node):
+        nonlocal marked, by_appid
+        if marked is None and mark in (node.get("marks") or []):
+            marked = node
+        elif by_appid is None and node.get("app_id") == app_id:
+            by_appid = node
+        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+            walk(child)
+
+    walk(tree)
+
+    if marked is not None:
+        return marked
+    if by_appid is not None:
+        sway(f'[con_id={by_appid["id"]}]', "mark", mark)
+        return by_appid
+    return None
 
 
 def main() -> None:
@@ -67,7 +80,7 @@ def main() -> None:
     app_id = f"{name}-drawer"
 
     log(name, "invoked")
-    foot = find_marked(mark)
+    foot = find_drawer(mark, app_id)
 
     if foot is None:
         log(name, f"no foot found, spawning with app-id={app_id}")
