@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+"""tc-corps — HAROS configuration runner.
+
+Reads a HAROS config, populates role prompts with task context, and
+dispatches agents in the topology the config defines. Agents run in
+tmux sessions with git worktrees for isolation.
+
+Usage:
+    tc-corps launch <config> <brief> [--overlay <overlay>] [--host <host>] [--dry-run]
+    tc-corps status
+    tc-corps reap <session>
+    tc-corps list-configs
+    tc-corps list-roles
+
+Examples:
+    tc-corps launch corps grind-phase2-bugs.md --host jarvis-wsl
+    tc-corps launch scout brief.md --overlay witness
+    tc-corps status
+    tc-corps reap corps-20260415
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+# Resolve paths relative to this script
+SCRIPT_DIR = Path(__file__).resolve().parent
+CORPS_DIR = SCRIPT_DIR.parent
+CONFIGS_DIR = CORPS_DIR / "configs"
+ROLES_DIR = CORPS_DIR / "roles"
+RUNS_DIR = Path.home() / "haros" / "runs"
+
+# ---------------------------------------------------------------------------
+# Config loading
+# ---------------------------------------------------------------------------
+
+def load_config(name: str) -> dict:
+    """Load a YAML config by name. Falls back to PyYAML or manual parse."""
+    path = CONFIGS_DIR / f"{name}.yaml"
+    if not path.exists():
+        die(f"Config not found: {path}")
+    try:
+        import yaml
+        return yaml.safe_load(path.read_text())
+    except ImportError:
+        # Minimal YAML fallback — good enough for our simple configs
+        die("PyYAML not installed. Run: pip install pyyaml")
+
+
+def load_role(name: str) -> str:
+    """Load a role prompt template by name."""
+    path = ROLES_DIR / f"{name}.md"
+    if not path.exists():
+        die(f"Role template not found: {path}")
+    return path.read_text()
+
+
+def list_configs():
+    """Print available configs."""
+    for f in sorted(CONFIGS_DIR.glob("*.yaml")):
+        try:
+            import yaml
+            cfg = yaml.safe_load(f.read_text())
+            desc = cfg.get("description", "")
+        except Exception:
+            desc = ""
+        print(f"  {f.stem:20s} {desc}")
+
+
+def list_roles():
+    """Print available role templates."""
+    for f in sorted(ROLES_DIR.glob("*.md")):
+        first_line = f.read_text().split("\n")[0].strip("# ").strip()
+        print(f"  {f.stem:25s} {first_line}")
+
+
+# ---------------------------------------------------------------------------
+# Preflight checks
+# ---------------------------------------------------------------------------
+
+def preflight(checks: list[str], host: str) -> bool:
+    """Run preflight checks. Returns True if all pass."""
+    ok = True
+    for check in checks:
+        if check == "power":
+            if host == "local":
+                rc = run_quiet(["tc-power", "--quiet"])
+                if rc != 0:
+                    warn("PREFLIGHT FAIL: on battery. Plug in or use --host jarvis-wsl.")
+                    ok = False
+                else:
+                    info("preflight: power OK (AC)")
+            else:
+                info(f"preflight: power skipped (host={host}, assumed mains)")
+        elif check == "toolchain":
+            tools = ["git", "claude"]
+            for tool in tools:
+                if host == "local":
+                    rc = run_quiet(["which", tool])
+                else:
+                    rc = run_quiet(["ssh", host, f"which {tool}"])
+                if rc != 0:
+                    warn(f"PREFLIGHT FAIL: {tool} not found on {host}")
+                    ok = False
+            if ok:
+                info("preflight: toolchain OK")
+    return ok
+
+
+# ---------------------------------------------------------------------------
+# Tmux + worktree management
+# ---------------------------------------------------------------------------
+
+def make_run_id(config_name: str) -> str:
+    ts = datetime.now().strftime("%Y%m%dT%H%M%S")
+    return f"{config_name}-{ts}"
+
+
+def tmux_session_exists(name: str, host: str) -> bool:
+    if host == "local":
+        rc = run_quiet(["tmux", "has-session", "-t", name])
+    else:
+        rc = run_quiet(["ssh", host, f"tmux has-session -t {shlex.quote(name)}"])
+    return rc == 0
+
+
+def tmux_new(name: str, host: str, cmd: str):
+    """Start a new detached tmux session running cmd."""
+    if host == "local":
+        subprocess.run(["tmux", "new-session", "-d", "-s", name, cmd], check=True)
+    else:
+        full = f"tmux new-session -d -s {shlex.quote(name)} {shlex.quote(cmd)}"
+        subprocess.run(["ssh", host, full], check=True)
+
+
+def tmux_list(host: str) -> str:
+    if host == "local":
+        r = subprocess.run(["tmux", "ls"], capture_output=True, text=True)
+    else:
+        r = subprocess.run(["ssh", host, "tmux ls"], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else "(no sessions)"
+
+
+def create_worktree(repo: str, branch: str, base: str = "main", host: str = "local") -> str:
+    """Create a git worktree and return its path."""
+    wt_dir = f"{repo}-worktrees/{branch}"
+    if host == "local":
+        subprocess.run(["git", "-C", repo, "worktree", "add", wt_dir, "-b", branch, base],
+                       check=True, capture_output=True)
+    else:
+        cmd = f"git -C {shlex.quote(repo)} worktree add {shlex.quote(wt_dir)} -b {shlex.quote(branch)} {shlex.quote(base)}"
+        subprocess.run(["ssh", host, cmd], check=True, capture_output=True)
+    return wt_dir
+
+
+# ---------------------------------------------------------------------------
+# Agent spawning
+# ---------------------------------------------------------------------------
+
+MODEL_MAP = {
+    "opus": "claude-opus-4-6",
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5-20251001",
+    "codex": "codex",  # handled separately
+}
+
+
+def spawn_agent(
+    session_name: str,
+    role_prompt: str,
+    model: str,
+    worktree_path: str | None,
+    host: str,
+):
+    """Spawn a claude agent in a tmux session with the given prompt."""
+    if model == "codex":
+        # Codex uses a different CLI — placeholder for now
+        info(f"  [codex] would dispatch to codex exec for {session_name}")
+        return
+
+    model_id = MODEL_MAP.get(model, model)
+    cwd = worktree_path or "."
+
+    # Write prompt to a temp file so we can pipe it without quoting hell
+    prompt_file = f"/tmp/haros-prompt-{session_name}.md"
+    if host == "local":
+        Path(prompt_file).write_text(role_prompt)
+    else:
+        subprocess.run(
+            ["ssh", host, f"cat > {shlex.quote(prompt_file)}"],
+            input=role_prompt.encode(), check=True
+        )
+
+    # Build the claude command
+    claude_cmd = f"cd {shlex.quote(cwd)} && claude --model {model_id} --prompt-file {shlex.quote(prompt_file)}"
+
+    tmux_new(session_name, host, f"bash -lc {shlex.quote(claude_cmd)}")
+    info(f"  spawned {session_name} ({model}) in tmux on {host}")
+
+
+# ---------------------------------------------------------------------------
+# Launch command
+# ---------------------------------------------------------------------------
+
+def cmd_launch(args):
+    config = load_config(args.config)
+    brief_path = Path(args.brief)
+    if not brief_path.exists():
+        die(f"Brief not found: {brief_path}")
+    brief = brief_path.read_text()
+
+    host = args.host or config.get("defaults", {}).get("host", "local")
+    run_id = make_run_id(config["name"])
+    use_worktree = config.get("defaults", {}).get("worktree", True)
+
+    info(f"HAROS run: {run_id}")
+    info(f"Config: {config['name']} — {config.get('description', '')}")
+    info(f"Host: {host}")
+    info(f"Brief: {brief_path.name} ({len(brief)} chars)")
+
+    # Preflight
+    checks = config.get("defaults", {}).get("preflight", [])
+    if checks and not args.dry_run:
+        if not preflight(checks, host):
+            die("Preflight failed. Fix the issues above or use --dry-run to skip.")
+
+    # Save run metadata
+    run_dir = RUNS_DIR / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "config.json").write_text(json.dumps(config, indent=2))
+    (run_dir / "brief.md").write_text(brief)
+
+    # Process phases
+    phases = config.get("phases", [])
+    for phase in phases:
+        phase_name = phase["name"]
+        is_parallel = phase.get("parallel", False)
+        is_optional = phase.get("optional", False)
+
+        info(f"\n--- Phase: {phase_name} {'(parallel)' if is_parallel else '(sequential)'} ---")
+
+        if is_optional:
+            info(f"  (optional phase — orchestrator decides whether to run)")
+
+        if args.dry_run:
+            for role_def in phase.get("roles", []):
+                count = role_def.get("count", 1)
+                if isinstance(count, str) and count.startswith("{"):
+                    count = f"<orchestrator-decided: {count}>"
+                info(f"  would spawn: {role_def['role']} x{count} ({role_def.get('model', 'sonnet')})")
+            continue
+
+        for role_def in phase.get("roles", []):
+            role_name = role_def["role"]
+            model = role_def.get("model", "sonnet")
+            count = role_def.get("count", 1)
+
+            # Dynamic count — prompt orchestrator
+            if isinstance(count, str) and count.startswith("{"):
+                info(f"  {count} — set by orchestrator at runtime. Skipping auto-spawn.")
+                info(f"  Use: tc-corps spawn-role {run_id} {role_name} <count>")
+                continue
+
+            role_template = load_role(role_name)
+
+            for i in range(count):
+                agent_name = f"{role_name}-{i+1}" if count > 1 else role_name
+                session = f"{run_id}_{agent_name}"
+                branch = f"{run_id}/{agent_name}"
+
+                # Populate template
+                prompt = role_template
+                prompt = prompt.replace("{task}", brief[:500])  # first 500 chars as summary
+                prompt = prompt.replace("{brief}", brief)
+                prompt = prompt.replace("{config}", config["name"])
+                prompt = prompt.replace("{agent_name}", agent_name)
+                prompt = prompt.replace("{model}", model)
+                prompt = prompt.replace("{branch}", branch)
+                prompt = prompt.replace("{run_id}", run_id)
+                prompt = prompt.replace("{log_path}", str(run_dir / f"witness-{run_id}.md"))
+
+                # TODO: fill {repo}, {build_cmd}, {test_cmd}, {worktree_path} from brief or config
+                # For now, leave them as placeholders for the orchestrator to fill
+
+                wt_path = None
+                if use_worktree and model != "codex":
+                    try:
+                        wt_path = create_worktree(os.getcwd(), branch, host=host)
+                        prompt = prompt.replace("{worktree_path}", wt_path)
+                    except subprocess.CalledProcessError as e:
+                        warn(f"  worktree creation failed for {branch}: {e}")
+
+                spawn_agent(session, prompt, model, wt_path, host)
+
+                # Save prompt for auditability
+                (run_dir / f"{session}.prompt.md").write_text(prompt)
+
+    if not args.dry_run:
+        info(f"\nRun {run_id} launched. Use 'tc-corps status' to check progress.")
+    else:
+        info(f"\nDry run complete. No agents were spawned.")
+
+
+# ---------------------------------------------------------------------------
+# Status command
+# ---------------------------------------------------------------------------
+
+def cmd_status(args):
+    host = args.host or "local"
+    info(f"Active tmux sessions on {host}:")
+    print(tmux_list(host))
+
+    info(f"\nRun directories in {RUNS_DIR}:")
+    if RUNS_DIR.exists():
+        for d in sorted(RUNS_DIR.iterdir()):
+            if d.is_dir():
+                prompts = list(d.glob("*.prompt.md"))
+                print(f"  {d.name:40s} ({len(prompts)} agents)")
+    else:
+        print("  (none)")
+
+
+# ---------------------------------------------------------------------------
+# Reap command
+# ---------------------------------------------------------------------------
+
+def cmd_reap(args):
+    info(f"Reap not yet implemented. Will collect results from run: {args.session}")
+    info("For now: check tmux sessions manually and collect PR URLs.")
+
+
+# ---------------------------------------------------------------------------
+# Utilities
+# ---------------------------------------------------------------------------
+
+def info(msg: str):
+    print(f"[corps] {msg}", file=sys.stderr)
+
+def warn(msg: str):
+    print(f"[corps] ⚠ {msg}", file=sys.stderr)
+
+def die(msg: str):
+    print(f"[corps] ✗ {msg}", file=sys.stderr)
+    sys.exit(1)
+
+def run_quiet(cmd: list[str]) -> int:
+    return subprocess.run(cmd, capture_output=True).returncode
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="tc-corps",
+        description="HAROS configuration runner — spawn agents in the right topology",
+    )
+    sub = parser.add_subparsers(dest="command")
+
+    # launch
+    p_launch = sub.add_parser("launch", help="Launch a HAROS run")
+    p_launch.add_argument("config", help="Config name (e.g. 'corps', 'scout')")
+    p_launch.add_argument("brief", help="Path to brief file (.md)")
+    p_launch.add_argument("--overlay", help="Overlay config to apply (e.g. 'witness')")
+    p_launch.add_argument("--host", help="Where to run: 'local' or SSH host (e.g. 'jarvis-wsl')")
+    p_launch.add_argument("--dry-run", action="store_true", help="Show what would happen without spawning")
+
+    # status
+    p_status = sub.add_parser("status", help="Show running sessions and past runs")
+    p_status.add_argument("--host", default="local")
+
+    # reap
+    p_reap = sub.add_parser("reap", help="Collect results from a completed run")
+    p_reap.add_argument("session", help="Run ID to reap")
+
+    # list-configs
+    sub.add_parser("list-configs", help="List available HAROS configs")
+
+    # list-roles
+    sub.add_parser("list-roles", help="List available role templates")
+
+    args = parser.parse_args()
+
+    if args.command == "launch":
+        cmd_launch(args)
+    elif args.command == "status":
+        cmd_status(args)
+    elif args.command == "reap":
+        cmd_reap(args)
+    elif args.command == "list-configs":
+        list_configs()
+    elif args.command == "list-roles":
+        list_roles()
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
