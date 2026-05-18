@@ -11,3 +11,11 @@ furnace/.venv/
 unmuzzled-drafts/
 family-council/*.md
 drawercast/tc-nest.tailb8d6bc.ts.net.key
+
+# Runtime logs & ephemera (added 2026-05-18 during a11y-sweep cleanup).
+drawercast/*.out
+drawercast/*.log
+nixos/*.bak.*
+
+# External upstream clones — vendored locally but not part of CHArOS history.
+piper1-gpl/
