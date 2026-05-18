@@ -16,6 +16,8 @@ Skip by default: regular `pytest` runs do not invoke network tests.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from surfscout.read import read_url
@@ -66,8 +68,6 @@ def test_landwatch_search_results_no_readability_yields_all_cards():
     With --no-readability the full body is markdownified, yielding all
     page-1 listings (LandWatch paginates at 25/page).
     """
-    import re
-
     url = (
         "https://www.landwatch.com/colorado-land-for-sale/acres-50-100"
         "/price-under-200000"

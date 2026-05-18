@@ -83,7 +83,7 @@ Stale state is auto-cleaned when the IPC layer detects a dead daemon. `DaemonDea
 
 ## Tested coverage
 
-```
+```text
 pytest tests/                         → 29 passed, 3 xfailed
 pytest tests/ -m network              → 4 passed, 3 xfailed (live sites)
 scripts/smoke.sh                      → 9/9 phases green

@@ -79,7 +79,7 @@ Family Computer Use, inverted. **SurfScout doesn't drive the browser; it exposes
 **Hybrid clicking:** The driving Claude Code session can pick element-based (`click-selector`) when DOM is clean, or coordinate-based (`click x y`) when only vision is reliable. Vision can call `get-elements` to discover selectors before deciding.
 
 **Loop pattern (in Claude Code):**
-```
+```text
 1. surfscout navigate "https://landwatch.com/..."
 2. surfscout screenshot           → /tmp/surfscout-shot-*.png
 3. (Claude Code reads screenshot, decides next action)
@@ -106,7 +106,7 @@ Family Computer Use, inverted. **SurfScout doesn't drive the browser; it exposes
 
 ## Architecture
 
-```
+```text
 ┌───────────────────────────────────────────────────────┐
 │  Claude Code session (TC, Scout, Venus, anyone)       │
 │  ── this is the reasoning loop ──                     │
@@ -134,7 +134,7 @@ Family Computer Use, inverted. **SurfScout doesn't drive the browser; it exposes
 
 ## Project layout (proposed)
 
-```
+```text
 ~/charos/surfscout/
 ├── README.md             # quickstart + family-facing docs
 ├── MVP.md                # this file

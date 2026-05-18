@@ -248,8 +248,15 @@ async def handle_hover(state: DaemonState, args: dict[str, Any]) -> dict[str, An
     if "selector" in args and args["selector"]:
         await state.page.hover(args["selector"])
         return {"hovered": args["selector"]}
-    x = int(args["x"])
-    y = int(args["y"])
+    x_raw = args.get("x")
+    y_raw = args.get("y")
+    if x_raw is None or y_raw is None:
+        raise ValueError("hover requires either 'selector' or both 'x' and 'y' coordinates")
+    try:
+        x = int(x_raw)
+        y = int(y_raw)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"hover coordinates must be ints: {e}") from e
     await state.page.mouse.move(x, y)
     return {"hovered_at": [x, y]}
 

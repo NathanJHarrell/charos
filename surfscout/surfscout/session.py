@@ -185,15 +185,14 @@ def start(name: str = DEFAULT_SESSION_NAME, headless: bool = False) -> dict[str,
         cmd.append("--headless")
 
     log_path = Path.home() / ".surfscout" / f"daemon-{name}.log"
-    log = open(log_path, "ab")
-
-    proc = subprocess.Popen(
-        cmd,
-        stdout=log,
-        stderr=log,
-        stdin=subprocess.DEVNULL,
-        start_new_session=True,
-    )
+    with open(log_path, "ab") as log:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log,
+            stderr=log,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
 
     # Wait for the socket to be ready and the daemon to respond to a ping
     sock = socket_path(name)
