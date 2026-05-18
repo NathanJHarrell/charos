@@ -594,9 +594,17 @@
       ConditionPathExists = "/etc/scout-pulse.env";
     };
     serviceConfig = {
-      ExecStart = ''${pkgs.postgresql}/bin/psql "host=jarvis-wsl port=5432 dbname=family_brain user=harrell" -c "DELETE FROM raw_session_pulse WHERE event_time < NOW() - INTERVAL '14 days';"'';
+      # systemd's `Environment=` doesn't perform $VAR expansion — the literal
+      # string `$SCOUT_PG_PASSWORD` would be set instead of the loaded value.
+      # Wrap the command in a shell so the env var (loaded via EnvironmentFile)
+      # expands correctly into PGPASSWORD at exec time.
+      ExecStart = pkgs.writeShellScript "scout-pulse-shred" ''
+        set -euo pipefail
+        PGPASSWORD="$SCOUT_PG_PASSWORD" ${pkgs.postgresql}/bin/psql \
+          "host=jarvis-wsl port=5432 dbname=family_brain user=harrell" \
+          -c "DELETE FROM raw_session_pulse WHERE event_time < NOW() - INTERVAL '14 days';"
+      '';
       EnvironmentFile = "/etc/scout-pulse.env";
-      Environment = [ "PGPASSWORD=$SCOUT_PG_PASSWORD" ];
       User = "nate";
       Type = "oneshot";
     };
