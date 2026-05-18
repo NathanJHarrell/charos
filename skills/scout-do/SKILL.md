@@ -68,5 +68,5 @@ All primitives print JSON to stdout: `{"ok": true, "result": ...}` on success, `
 ## Related
 
 - `scout-read` — one-shot ephemeral URL reads
-- Project: `~/charos/surfscout/`
-- Primer: `~/charos/surfscout/PRIMER.md`
+- Project: `~/Manor/Scout/Projects/surfscout/`
+- Primer: `~/Manor/Scout/Projects/surfscout/PRIMER.md`

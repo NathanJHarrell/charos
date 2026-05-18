@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # surfscout — CLI shim for the family-built browser automation tool
 #
-# Looks for the project venv at ~/charos/surfscout/.venv and execs the CLI
+# Looks for the project venv at ~/Manor/Scout/Projects/surfscout/.venv and execs the CLI
 # module through it so the surfscout package and Playwright are importable.
 #
 # If the venv is missing, prints a helpful bootstrap message.
@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-SURFSCOUT_ROOT="${HOME}/charos/surfscout"
+SURFSCOUT_ROOT="${HOME}/Manor/Scout/Projects/surfscout"
 VENV_PYTHON="${SURFSCOUT_ROOT}/.venv/bin/python"
 
 if [[ ! -x "${VENV_PYTHON}" ]]; then

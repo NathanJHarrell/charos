@@ -59,5 +59,5 @@ surfscout read "https://some-slow-spa.example/path" --settle-ms 5000 --timeout-m
 ## Related
 
 - `scout-do` — full Tool 2 surface for interactive sessions
-- Project: `~/charos/surfscout/`
-- Primer: `~/charos/surfscout/PRIMER.md`
+- Project: `~/Manor/Scout/Projects/surfscout/`
+- Primer: `~/Manor/Scout/Projects/surfscout/PRIMER.md`
