@@ -217,7 +217,7 @@ def dispatch_spawn(build, label, task_desc):
         return False
 
     result = subprocess.run(
-        [str(haros_bin), "spawn", build, label],
+        [str(haros_bin), "spawn", build, label, task_desc],
         capture_output=False,
     )
     return result.returncode == 0

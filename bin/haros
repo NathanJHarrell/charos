@@ -144,21 +144,50 @@ cmd_status() {
 cmd_spawn() {
   local build="${1:-}"
   local label="${2:-}"
+  local prompt="${3:-}"
+  local agent="TC"  # default to TC
+  local force="false"
 
-  if [[ -z "$build" || -z "$label" ]]; then
-    echo -e "${RED}Usage: haros spawn <build> <label>${RESET}"
+  # Parse flags from remaining args
+  shift 3 2>/dev/null || true
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --agent) agent="${2:-TC}"; shift 2 ;;
+      --force) force="true"; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  if [[ -z "$build" || -z "$label" || -z "$prompt" ]]; then
+    echo -e "${RED}Usage: haros spawn <build> <label> <prompt> [--agent <Name>] [--force]${RESET}"
+    return 1
+  fi
+
+  local manor_dir="$HOME/Manor/${agent}"
+  if [[ ! -d "$manor_dir" ]]; then
+    echo -e "${RED}Agent manor not found: ${manor_dir}${RESET}"
     return 1
   fi
 
   local session="haros-${build}-${label}"
 
   if tmux has-session -t "$session" 2>/dev/null; then
-    echo -e "${RED}Session '$session' already exists${RESET}"
-    return 1
+    if [[ "$force" == "true" ]]; then
+      echo -e "${DIM}Killing existing session '$session' (--force)${RESET}"
+      tmux kill-session -t "$session" 2>/dev/null
+    else
+      echo -e "${RED}Session '$session' already exists${RESET} ${DIM}(use --force to replace)${RESET}"
+      return 1
+    fi
   fi
 
-  tmux new-session -d -s "$session" "bypass claude --dangerously-skip-permissions"
-  echo -e "${GREEN}Spawned: ${EMBER}${session}${RESET}"
+  # NOTE: bypass netns removed 2026-05-01 due to known return-path bug.
+  # When VPN is up, Anthropic blocks ProtonVPN exit IPs so claude calls fail.
+  # Workaround: turn VPN off before spawning. Re-add as optional --bypass flag
+  # once the netns return-path issue is fixed (see backlog).
+  tmux new-session -d -s "$session" \
+    "cd $(printf '%q' "$manor_dir") && claude -p $(printf '%q' "$prompt") --dangerously-skip-permissions --output-format json"
+  echo -e "${GREEN}Spawned: ${EMBER}${session}${RESET} ${DIM}(agent: ${agent})${RESET}"
 }
 
 cmd_attach() {
@@ -422,7 +451,7 @@ cmd_help() {
   echo ""
   echo -e "  ${BOLD}haros list${RESET}                          All active builds"
   echo -e "  ${BOLD}haros status${RESET} [build]                Session detail (auto-detects build)"
-  echo -e "  ${BOLD}haros spawn${RESET} <build> <label>         Create a named session"
+  echo -e "  ${BOLD}haros spawn${RESET} <build> <label> <prompt> [--agent Name] [--force]  Spawn headless agent (default: TC; --force replaces collision)"
   echo -e "  ${BOLD}haros attach${RESET} <build> [label]        Attach to a session"
   echo -e "  ${BOLD}haros tree${RESET} <build>                  Agent hierarchy"
   echo -e "  ${BOLD}haros cleanup${RESET} [build] [--force]     Kill stale sessions"

@@ -15,11 +15,11 @@ from datetime import datetime
 from pathlib import Path
 
 # Right-side drawer: ~45% width, full height
-SCREEN_W = 1280
-SCREEN_H = 800
-WIDTH = 576          # ~45% of 1280
+SCREEN_W = 2048
+SCREEN_H = 1280
+WIDTH = 922          # ~45% of 2048
 HEIGHT = SCREEN_H    # full height
-X = SCREEN_W - WIDTH  # right-anchored: 1280 - 576 = 704
+X = SCREEN_W - WIDTH  # right-anchored: 2048 - 922 = 1126
 Y = 0
 MARK = "htop-drawer"
 LOG = Path("/tmp/htop-drawer.log")
