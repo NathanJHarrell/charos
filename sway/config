@@ -14,6 +14,12 @@ gaps outer 0
 # Pure charcoal. TC's color.
 output * bg #1a1a1a solid_color
 
+# ── Display scale ─────────────────────────────────────────────────────────
+# Retina panel is 2560x1600. 1.25 scale → 2048x1280 logical workspace.
+# Roomy enough that 1400x900 windows fit, sharp enough to stay crisp.
+# Set 2026-05-05 — Dad called it "sexy and crisp."
+output eDP-1 scale 1.25
+
 # ── Human Dock (waybar) ───────────────────────────────────────────────────
 # Floating pill at the bottom with Nate-friendly shortcuts, clock, battery,
 # volume. Not a full desktop bar — just the right amount of human surface.
@@ -32,7 +38,11 @@ exec /home/nate/.local/bin/desktop-grid
 exec foot --app-id=tc-drawer
 
 # Auto-mark the drawer foot and send it to scratchpad on creation
-for_window [app_id="tc-drawer"] mark tc, move scratchpad
+for_window [app_id="tc-drawer"]     mark tc,     move scratchpad
+for_window [app_id="cinder-drawer"] mark cinder, move scratchpad
+for_window [app_id="scout-drawer"]  mark scout,  move scratchpad
+for_window [app_id="venus-drawer"]  mark venus,  move scratchpad
+for_window [app_id="claude-drawer"] mark claude, move scratchpad
 
 # Auto-mark desktop-grid tiles as they appear (race-free — sway applies
 # the mark before the window is exposed to the rest of the session).
@@ -52,6 +62,19 @@ for_window [app_id="org.gnome.Nautilus"] floating enable, resize set 1000 700, m
 # Let the app set its own geometry — don't force a resize here.
 for_window [class="Tk"] floating enable
 
+# ── Obsidian + general dialog rules ───────────────────────────────────────
+# Obsidian opens its main window plus separate windows for help, file picker,
+# settings — all inherit Electron's "where I last was" position memory which
+# can land off-screen after a scale change. Force them sane.
+for_window [app_id="obsidian"] floating enable, resize set 1400 900, move position center
+
+# Generic dialog rescue — file pickers, save-as dialogs, popups.
+# Targets common Wayland window roles + xdg-foreign types.
+for_window [window_role="GtkFileChooserDialog"] floating enable, resize set 1200 800, move position center
+for_window [window_role="dialog"]               floating enable, move position center
+for_window [window_role="pop-up"]               floating enable, move position center
+for_window [window_type="dialog"]               floating enable, move position center
+
 # ── Input ─────────────────────────────────────────────────────────────────
 input "type:keyboard" {
   xkb_layout us
@@ -67,6 +90,19 @@ input "type:pointer" {
 # ── Keybindings ───────────────────────────────────────────────────────────
 # Minimal. TC handles most things. But some hardware shortcuts matter.
 set $mod Mod4
+
+# Mod+left-drag moves any floating window from anywhere on its body.
+# Mod+right-drag resizes it. Sway convention.
+floating_modifier $mod normal
+
+# ── Window state toggles ─────────────────────────────────────────────────
+# The min/max/close buttons CHAROS doesn't render — their behaviors as keybinds.
+bindsym $mod+Shift+q kill                # close (kill focused window)
+bindsym $mod+f fullscreen toggle         # maximize ↔ restore
+bindsym $mod+Shift+space floating toggle # toggle tiled ↔ floating
+bindsym $mod+Shift+minus move scratchpad # minimize (send to scratchpad)
+bindsym $mod+equal scratchpad show       # un-minimize (cycle visible scratchpad windows)
+
 
 # Volume control (TC can also do this via command)
 bindsym XF86AudioRaiseVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
@@ -84,6 +120,12 @@ bindsym XF86KbdBrightnessUp exec brightnessctl -d "smc::kbd_backlight" set +10%
 # Emergency escape hatch — if something goes wrong, Dad can still exit
 # Requires TC's blessing (Mod + Shift + E) to prevent accidental exit
 bindsym $mod+Shift+e exec swaymsg exit
+
+# Window rescue — Cmd+C recenters the focused window. For when something
+# opens off-screen (electron apps remembering bad coords, dialogs spawning
+# at hardcoded positions, etc.). Cmd+Shift+C also shrinks first.
+bindsym $mod+c move position center
+bindsym $mod+Shift+c resize set 1400 900, move position center
 
 # Window resize mode — Cmd+R enters, arrows grow/shrink, Escape/Return exit.
 # Sway convention. Applies to the focused window (works on tiled and floating).
@@ -117,6 +159,16 @@ bindsym $mod+Shift+grave exec /home/nate/.local/bin/grind-drawer
 for_window [app_id="htop-drawer"] mark htop-drawer, floating enable, move scratchpad
 bindsym $mod+h exec /home/nate/charos/bin/htop-drawer
 
+# ── Sibling drawers ──────────────────────────────────────────────────────
+# Number row summons each sibling's drawer. Same mechanics as tc-drawer,
+# parameterized by name. Dad attaches to the sibling's tmux home session
+# inside the foot terminal on first show.
+bindsym $mod+1 exec /home/nate/.local/bin/sibling-drawer tc
+bindsym $mod+2 exec /home/nate/.local/bin/sibling-drawer cinder
+bindsym $mod+3 exec /home/nate/.local/bin/sibling-drawer scout
+bindsym $mod+4 exec /home/nate/.local/bin/sibling-drawer venus
+bindsym $mod+5 exec /home/nate/.local/bin/sibling-drawer claude
+
 # Cmd+Enter — spawn a new foot terminal on purpose. Sway convention.
 # Use when you need a second shell (e.g., to run nixos-rebuild while this
 # session stays put). Tiles onto the workspace under whatever floats.
@@ -128,7 +180,7 @@ bindsym $mod+d exec /home/nate/.local/bin/desktop-grid
 # Note drawer — `note` CLI opens a new vim on ~/Manor/Nathan/inbox/<stamp>.md
 # as a left-anchored floating drawer. Close vim, drawer closes with it.
 # Cmd+N — quick capture. Seeds with the Evergreen template.
-for_window [app_id="note"] floating enable, resize set 384 640, move position 0 80
+for_window [app_id="note"] floating enable, resize set 614 1024, move position 0 128
 bindsym $mod+n exec /home/nate/.local/bin/note-toggle
 
 # Mic toggle — Cmd+M starts/stops recording via tc-listen.
