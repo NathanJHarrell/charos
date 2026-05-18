@@ -31,7 +31,15 @@ surfscout read "https://www.landwatch.com/saguache-county-colorado-farms-and-ran
 
 # Search-results / card-grid pages — skip Readability so all cards survive
 surfscout read "https://www.landwatch.com/colorado-land-for-sale/acres-50-100/price-under-200000" --no-readability
+
+# Slow-loading SPA — wait longer for JS to settle, bump the overall timeout
+surfscout read "https://some-slow-spa.example/path" --settle-ms 5000 --timeout-ms 60000
 ```
+
+### Flag reference
+
+- `--settle-ms <ms>` — extra time (after `load`) to wait for client-side rendering before extraction. Default 1500. Bump to 3000–5000 for JS-heavy SPAs whose content paints late.
+- `--timeout-ms <ms>` — overall navigation/render timeout. Default 30000. Bump when the target is slow or you're on flaky network.
 
 ## Output shape
 

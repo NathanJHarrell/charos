@@ -16,7 +16,7 @@ This file defines **what every record looks like, regardless of site.** Per-site
 
 ## Storage layout
 
-```
+```text
 ~/.family-browser/
   journal/
     2026-04-25.json       # today's capture, written live
@@ -127,7 +127,7 @@ Scout's annotations are first-class records, stored alongside the data they inte
 
 | Field | Meaning |
 |-------|---------|
-| `refs` | Array of indexes into the same site-array. Points at the records this annotation interprets. |
+| `refs` | Array of indexes into the same site-array. Points at the records this annotation interprets. **See Immutability Guarantee below — these indexes are stable.** |
 | `importance_score` | Scout's float 0.0–1.0. How much does this matter to Dad? |
 | `confidence` | Scout's float 0.0–1.0. How sure is Scout about its interpretation? |
 | `tags` | Free-form labels. Used for retrieval and pattern clustering. |
@@ -140,7 +140,7 @@ Scout's annotations are first-class records, stored alongside the data they inte
 
 ## Lifecycle
 
-```
+```text
 LIVE CAPTURE (00:00–23:59)
   ↓ Browser writes page_state and interaction records to today's JSON
 MIDNIGHT ROLLUP (00:00 next day)
@@ -156,6 +156,18 @@ DASHBOARD READS (continuous)
 ```
 
 Yesterday's JSON is preserved post-rollup as an audit trail (Scout's annotations are visible in context). Older JSON files are deleted after 30 days; SQLite is the long-term store.
+
+### Immutability Guarantee
+
+Site arrays in the daily JSON are **append-only during live capture and write-once after rollup**:
+
+- During live capture (00:00–23:59), the browser only appends records. Existing records are never reordered, mutated, or deleted in-place.
+- During midnight rollup, Scout appends `scout_annotation` records. It may *mark* records via the annotation's `decision` field (e.g. `shredded`), but the underlying array indexes do not shift — shredded records are dropped at the SQLite write step, not by re-indexing the JSON.
+- After rollup, the JSON is treated as read-only audit history.
+
+This guarantee is what makes `refs` (array-index references) safe. If you ever need to re-process a day's JSON (e.g. for a backfill), preserve the original index order or rewrite `refs` to match the new ordering. Future tooling that filters/dedupes records mid-capture must update or invalidate any annotations whose `refs` point at the touched indexes.
+
+If this guarantee becomes hard to keep (e.g. cross-day deduplication enters the pipeline), migrate `refs` to stable record IDs — a `record_id` field of `{tab_id}:{record_index}:{capture_ms}` or a UUID per record. The schema reserves space for that migration; the index form is the v1.0 simplification.
 
 ---
 
