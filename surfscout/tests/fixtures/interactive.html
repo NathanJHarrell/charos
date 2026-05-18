@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SurfScout Day 3 fixture</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .scrollzone { height: 2000px; background: linear-gradient(#eef,#fee); padding: 20px; }
+    .hover-target:hover + #hover-reveal { display: block; }
+    #hover-reveal { display: none; color: green; }
+    #click-counter { font-weight: bold; }
+    #typed-output { border: 1px solid #ccc; padding: 4px; min-height: 1em; }
+    #delayed { display: none; }
+  </style>
+</head>
+<body>
+  <h1 id="page-title">Day 3 Action Primitive Fixture</h1>
+
+  <section id="click-section">
+    <button id="click-btn" type="button">Click me</button>
+    <span id="click-counter">0</span> clicks
+  </section>
+
+  <section id="form-section">
+    <input id="text-input" type="text" placeholder="type here">
+    <div id="typed-output"></div>
+    <select id="dropdown">
+      <option value="alpha">Alpha</option>
+      <option value="beta">Beta</option>
+      <option value="gamma">Gamma</option>
+    </select>
+    <span id="dropdown-output"></span>
+  </section>
+
+  <section id="hover-section">
+    <span class="hover-target">hover me</span>
+    <span id="hover-reveal">REVEALED</span>
+  </section>
+
+  <section id="key-section">
+    <input id="key-input" type="text" placeholder="press keys here">
+    <div id="key-log"></div>
+  </section>
+
+  <section id="nav-links">
+    <a id="link-1" href="#anchor-1">go to anchor 1</a>
+    <a id="link-2" href="#anchor-2">go to anchor 2</a>
+    <div id="anchor-1" style="margin-top:50px">anchor 1</div>
+    <div id="anchor-2" style="margin-top:50px">anchor 2</div>
+  </section>
+
+  <section id="delayed-section">
+    <button id="trigger-delayed">show after 200ms</button>
+    <div id="delayed">delayed-element</div>
+  </section>
+
+  <section class="scrollzone">scroll zone (2000px tall)</section>
+
+  <ul id="repeat-list">
+    <li class="item">item-A</li>
+    <li class="item">item-B</li>
+    <li class="item">item-C</li>
+    <li class="item">item-D</li>
+  </ul>
+
+  <script>
+    let clickCount = 0;
+    document.getElementById("click-btn").addEventListener("click", () => {
+      clickCount += 1;
+      document.getElementById("click-counter").textContent = String(clickCount);
+    });
+
+    document.getElementById("text-input").addEventListener("input", (e) => {
+      document.getElementById("typed-output").textContent = e.target.value;
+    });
+
+    document.getElementById("dropdown").addEventListener("change", (e) => {
+      document.getElementById("dropdown-output").textContent = e.target.value;
+    });
+
+    document.getElementById("key-input").addEventListener("keydown", (e) => {
+      const log = document.getElementById("key-log");
+      log.textContent = (log.textContent + " " + e.key).trim();
+    });
+
+    document.getElementById("trigger-delayed").addEventListener("click", () => {
+      setTimeout(() => {
+        document.getElementById("delayed").style.display = "block";
+      }, 200);
+    });
+  </script>
+</body>
+</html>
