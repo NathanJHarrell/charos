@@ -155,7 +155,7 @@ Run `nathan-help` for the canonical user-facing inventory of every CHArOS tool, 
 | Perception  | `tc-listen`, `tc-mic`, `tc-ear`, `tc-see`, `tc-enroll`, `tc-say`, `tc-voice-*` |
 | System      | `tc-power`, `tc-status`, `tc-spawn`, `tc-transcript`, `tc-timer`, `battery`, `vpn` |
 | Battalion   | `haros`, `haros-dispatch`, `tc-corps`, `headless-haiku`                      |
-| Utilities   | `bus`, `clipd`, `brain`, `define`, `bypass`, `svg-trace`, `desktop-grid`, `dock-status`, `tmux-reaper` |
+| Utilities   | `bus`, `clipd`, `brain`, `define`, `bypass`, `svg-trace`, `desktop-grid`, `dock-status`, `tmux-reaper`, `surfscout` (Scout-owned) |
 | Family      | `family-agent`, `nathan-help`, `bus-latest-export`                           |
 | Maintenance | `vault-backup`, `harrell-panic`                                              |
 
