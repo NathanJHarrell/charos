@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# surfscout — CLI shim for the family-built browser automation tool
+#
+# Looks for the project venv at ~/charos/surfscout/.venv and execs the CLI
+# module through it so the surfscout package and Playwright are importable.
+#
+# If the venv is missing, prints a helpful bootstrap message.
+#
+# NixOS note: precompiled wheels (greenlet, lxml, etc.) need libstdc++.so.6
+# at standard paths. nix-ld provides them at $NIX_LD_LIBRARY_PATH. We prepend
+# that to LD_LIBRARY_PATH so the wheels resolve their dependencies.
+
+set -euo pipefail
+
+SURFSCOUT_ROOT="${HOME}/charos/surfscout"
+VENV_PYTHON="${SURFSCOUT_ROOT}/.venv/bin/python"
+
+if [[ ! -x "${VENV_PYTHON}" ]]; then
+    echo "surfscout: venv not found at ${VENV_PYTHON}" >&2
+    echo "" >&2
+    echo "Bootstrap:" >&2
+    echo "  cd ${SURFSCOUT_ROOT}" >&2
+    echo "  python3 -m venv .venv" >&2
+    echo "  .venv/bin/pip install -e '.[dev]'" >&2
+    echo "  .venv/bin/playwright install chromium" >&2
+    exit 127
+fi
+
+# NixOS dynamic linker resolution — needed for Python wheels with C extensions
+# (greenlet, lxml, etc.) that load libstdc++ via the standard linker path.
+if [[ -n "${NIX_LD_LIBRARY_PATH:-}" ]]; then
+    export LD_LIBRARY_PATH="${NIX_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH:-}"
+fi
+
+# NixOS Playwright Chromium discovery — if a Nix-managed playwright-chromium
+# exists (rpath-linked to all required system libs), prefer it over the
+# pip-downloaded chromium which fails to find libglib etc. on NixOS.
+# See ~/Manor/Scout/vault/NixOS_Playwright_pip_browser_shared_library_fix.md
+if [[ -z "${SURFSCOUT_CHROMIUM_PATH:-}" ]]; then
+    for candidate in /nix/store/*-playwright-chromium/chrome-linux/chrome; do
+        if [[ -x "${candidate}" ]]; then
+            export SURFSCOUT_CHROMIUM_PATH="${candidate}"
+            break
+        fi
+    done
+fi
+
+exec "${VENV_PYTHON}" -m surfscout.cli "$@"
