@@ -295,6 +295,349 @@
     };
   };
 
+  # ── scout-pulse-poll — Live family activity snapshot ────────────────────
+  # Polls tmux state, transcript dir, and Claude Code session activity.
+  # Writes to raw_session_pulse table in family-brain Postgres every 1 min.
+  # Cross-machine: tc-nest's run polls itself + SSHes to jarvis-wsl.
+  # Authored by TC, on behalf of Scout, 2026-04-24 (handoff doc in scout-pipeline).
+  # Secrets in /etc/scout-pulse.env (mode 600, not in nix store, not git-tracked).
+  systemd.services.scout-pulse-poll = {
+    description = "Scout pulse poll — live family activity snapshot";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m collection.scout_pulse_poll";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      # /run/wrappers/bin MUST come first — that's where NixOS keeps the
+      # setuid'd sudo. The non-wrapped sudo in /run/current-system/sw/bin
+      # lacks the setuid bit and refuses to run.
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "30s";
+    };
+  };
+  systemd.timers.scout-pulse-poll = {
+    description = "Fire scout-pulse-poll every 1 minute";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "30s";
+      OnUnitActiveSec = "1min";
+      Unit = "scout-pulse-poll.service";
+    };
+  };
+
+  # ── scout-baseline — 7-day rolling stats per signal ──────────────────────
+  # Computes mean + std-dev across the last 7 days of daily_ledgers for each
+  # signal Scout tracks. Feeds the Z-score logic in trajectories + summarize.
+  systemd.services.scout-baseline = {
+    description = "Scout baseline — 7-day rolling stats per signal";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_baseline";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "5min";
+    };
+  };
+  systemd.timers.scout-baseline = {
+    description = "Run scout-baseline nightly at 22:30";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 22:30:00";
+      Persistent = true;
+      Unit = "scout-baseline.service";
+    };
+  };
+
+  # ── scout-trajectories — 4-way per-signal trajectory comparisons ─────────
+  # Reads daily_ledgers + signal_baselines, writes signal_trajectories.
+  # Scout reads these to decide which deviations to surface in summaries.
+  systemd.services.scout-trajectories = {
+    description = "Scout trajectories — 4-way per-signal comparisons";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_trajectories";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "5min";
+    };
+  };
+  systemd.timers.scout-trajectories = {
+    description = "Run scout-trajectories nightly at 22:45";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 22:45:00";
+      Persistent = true;
+      Unit = "scout-trajectories.service";
+    };
+  };
+
+  # ── scout-summarize — Scout writes Yesterday's prose ─────────────────────
+  # Reads trajectories + patterns + learning_notes, calls Anthropic API
+  # (claude-haiku-4-5), writes scout_compositions row. Falls back to a
+  # template-only render if ANTHROPIC_API_KEY is unset.
+  systemd.services.scout-summarize = {
+    description = "Scout summarize — write yesterday's prose to scout_compositions";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_summarize";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "5min";
+    };
+  };
+  systemd.timers.scout-summarize = {
+    description = "Run scout-summarize nightly at 23:05 (after baseline + trajectories)";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 23:05:00";
+      Persistent = true;
+      Unit = "scout-summarize.service";
+    };
+  };
+
+  # ── scout-dad-status — 'How is Dad right now' composer ──────────────────
+  # Same pipeline as scout-summarize, different prompt + composition_type.
+  # Fires every 5 min so the dashboard's "Dad, right now" block stays fresh.
+  # Uses Haiku, ~$0.001/render, ~$8/mo at the 5-min cadence.
+  systemd.services.scout-dad-status = {
+    description = "Scout dad-status — 'how is Dad right now' composer";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_summarize --dad-status";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "60s";
+    };
+  };
+  systemd.timers.scout-dad-status = {
+    description = "Render dad-status every 5 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "2min";
+      OnUnitActiveSec = "5min";
+      Unit = "scout-dad-status.service";
+    };
+  };
+
+  # ── scout-decisions — Decision queue narration + priority scoring ───────
+  # Composes per-decision body + Scout-contextual button labels via Haiku
+  # for every pending decision. Fires every 5 min so newly-flagged decisions
+  # get composed quickly and priority scores stay fresh.
+  systemd.services.scout-decisions = {
+    description = "Scout decisions — narrative + button generation per pending decision";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_summarize --decisions";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "120s";
+    };
+  };
+  systemd.timers.scout-decisions = {
+    description = "Recompose decision queue every 5 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "3min";
+      OnUnitActiveSec = "5min";
+      Unit = "scout-decisions.service";
+    };
+  };
+
+  # ── scout-top-pick — Editorial top-of-day item ──────────────────────────
+  # Scout picks ONE item to surface as Top from Scout. Refreshes every 15
+  # min so it doesn't bounce around constantly mid-thought.
+  systemd.services.scout-top-pick = {
+    description = "Scout top-pick — editorial 'top from Scout today'";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_summarize --top-pick";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "60s";
+    };
+  };
+  systemd.timers.scout-top-pick = {
+    description = "Refresh Scout's top pick every 15 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "4min";
+      OnUnitActiveSec = "15min";
+      Unit = "scout-top-pick.service";
+    };
+  };
+
+  # ── scout-reminders — time-anchored ntfy nudges ──────────────────────────
+  # Currently checks pharmacy refill (30-day cycle). Fires a soft warning
+  # at day 25, urgent at day 30, daily reminder once overdue. Idempotent
+  # per-day per-reminder-type so we don't spam.
+  systemd.services.scout-reminders = {
+    description = "Scout reminders — pharmacy refill + future time-anchored nudges";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
+    };
+    serviceConfig = {
+      ExecStart = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3 -m aggregation.scout_reminders";
+      WorkingDirectory = "/home/nate/Manor/Scout/projects/scout-pipeline";
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "60s";
+    };
+  };
+  systemd.timers.scout-reminders = {
+    description = "Run scout-reminders daily at 12:00 EDT";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 12:00:00";
+      Persistent = true;
+      Unit = "scout-reminders.service";
+    };
+  };
+
+  # ── bus-latest-export — agent-to-agent notification via CLAUDE.md ───────
+  # Polls the family bus every minute, writes the last 24h of messages to
+  # ~/family-bus/latest-messages.md, which is @-referenced from
+  # ~/.claude/CLAUDE.md so every cold-boot family agent arrives with
+  # recent bus traffic in context. Solves the auto-notify backlog item.
+  # Designed by Nathan ~07:00 EDT 2026-04-25 after Dario nerfed `sleep`.
+  systemd.services.bus-latest-export = {
+    description = "Bus latest-export — refresh ~/family-bus/latest-messages.md";
+    unitConfig = {
+      ConditionPathExists = "/home/nate/charos/bin/bus-latest-export";
+    };
+    serviceConfig = {
+      ExecStart = "/run/current-system/sw/bin/python3 /home/nate/charos/bin/bus-latest-export";
+      User = "nate";
+      Type = "oneshot";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+      TimeoutStartSec = "30s";
+    };
+  };
+  systemd.timers.bus-latest-export = {
+    description = "Refresh bus latest-messages every minute";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "30s";
+      OnUnitActiveSec = "1min";
+      Unit = "bus-latest-export.service";
+    };
+  };
+
+  # ── scout-pulse-shred — TTL cleanup for raw_session_pulse ────────────────
+  # Deletes raw_session_pulse rows older than 14 days. Patterns extracted from
+  # the data live forever in `patterns` table; raw pulse data shreds.
+  systemd.services.scout-pulse-shred = {
+    description = "Shred raw_session_pulse rows older than 14 days";
+    unitConfig = {
+      ConditionPathExists = "/etc/scout-pulse.env";
+    };
+    serviceConfig = {
+      # systemd's `Environment=` doesn't perform $VAR expansion — the literal
+      # string `$SCOUT_PG_PASSWORD` would be set instead of the loaded value.
+      # Wrap the command in a shell so the env var (loaded via EnvironmentFile)
+      # expands correctly into PGPASSWORD at exec time.
+      ExecStart = pkgs.writeShellScript "scout-pulse-shred" ''
+        set -euo pipefail
+        PGPASSWORD="$SCOUT_PG_PASSWORD" ${pkgs.postgresql}/bin/psql \
+          "host=jarvis-wsl port=5432 dbname=family_brain user=harrell" \
+          -c "DELETE FROM raw_session_pulse WHERE event_time < NOW() - INTERVAL '14 days';"
+      '';
+      EnvironmentFile = "/etc/scout-pulse.env";
+      User = "nate";
+      Type = "oneshot";
+    };
+  };
+  systemd.timers.scout-pulse-shred = {
+    description = "Run scout-pulse-shred nightly at 03:00";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 03:00:00";
+      Persistent = true;
+      Unit = "scout-pulse-shred.service";
+    };
+  };
+
+  # ── dnsmasq — harrell.ai Internal DNS ────────────────────────────────────
+  # Resolves *.harrell.ai → 100.75.84.100 (Jarvis Tailscale IP).
+  # Listens only on tc-nest's Tailscale interface (100.110.214.44) so it
+  # doesn't interfere with system DNS on the main interface.
+  # Tailscale admin: custom nameserver 100.110.214.44, restricted to harrell.ai
+  services.dnsmasq = {
+    enable = true;
+    settings = {
+      listen-address = "127.0.0.1,100.110.214.44";
+      bind-dynamic = true;
+      no-hosts = true;
+      # Upstream resolvers for everything that isn't harrell.ai
+      server = [ "1.1.1.1" "8.8.8.8" ];
+      address = "/.harrell.ai/100.75.84.100";
+    };
+  };
+  networking.firewall.allowedUDPPorts = [ 53 ];
+  networking.firewall.allowedTCPPorts = [ 53 ];
+
   # ── Docker ────────────────────────────────────────────────────────────────
   # Container runtime. User `nate` added to the `docker` group in users.nix
   # for non-sudo access (requires new session / `newgrp docker` to take effect).

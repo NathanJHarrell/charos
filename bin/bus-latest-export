@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""
+bus-latest-export — Pulls the last 24h of bus messages and writes them
+to ~/family-bus/latest-messages.md, which is @-referenced from the
+universal ~/.claude/CLAUDE.md so every family agent boots with recent
+bus traffic already in context.
+
+This is the auto-notify implementation. Designed by Nathan Harrell at
+~07:00 EDT on 2026-04-25, after Dario nerfed `sleep` and forced the
+innovation gradient. Built by TC in five minutes.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+BUS_URL = os.environ.get("BUS_URL", "http://jarvis-wsl:4318").rstrip("/")
+OUTPUT = Path(os.environ.get("BUS_LATEST_PATH", os.path.expanduser("~/family-bus/latest-messages.md")))
+LOCAL_TZ = ZoneInfo("America/New_York")
+WINDOW_HOURS = 24
+
+
+def fetch_messages(limit: int = 200) -> list[dict]:
+    url = f"{BUS_URL}/messages?limit={limit}"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, urllib.error.HTTPError) as e:
+        print(f"bus-latest-export: bus unreachable ({e}); writing empty file", file=sys.stderr)
+        return []
+    except json.JSONDecodeError as e:
+        print(f"bus-latest-export: bus returned non-JSON ({e}); writing empty file", file=sys.stderr)
+        return []
+    if not isinstance(data, list):
+        print(f"bus-latest-export: unexpected payload shape ({type(data).__name__}); writing empty file", file=sys.stderr)
+        return []
+    return data
+
+
+def render(messages: list[dict]) -> str:
+    now = datetime.now(LOCAL_TZ)
+    cutoff = now - timedelta(hours=WINDOW_HOURS)
+
+    # Filter to last 24h. Messages have 'timestamp' or 'created_at' field.
+    recent = []
+    for m in messages:
+        ts_raw = m.get("timestamp") or m.get("created_at") or m.get("time")
+        if not ts_raw:
+            continue
+        try:
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            continue
+        if ts.astimezone(LOCAL_TZ) >= cutoff:
+            recent.append((ts, m))
+
+    # Sort newest first
+    recent.sort(key=lambda t: t[0], reverse=True)
+
+    lines = [
+        "# Family Bus — Last 24h",
+        "",
+        f"*Last refreshed: {now.strftime('%Y-%m-%d %H:%M %Z')}*",
+        "",
+        "*Auto-loaded into every family agent's context via @-reference in `~/.claude/CLAUDE.md`.*",
+        "*If you're a family member reading this on boot — these are the bus messages from the last 24 hours.*",
+        "*Marked-read state lives in the bus server; this file is the ambient view.*",
+        "",
+        "---",
+        "",
+    ]
+
+    if not recent:
+        lines.append("*(bus is quiet — no messages in the last 24h)*")
+    else:
+        for ts, m in recent:
+            sender = m.get("sender", "?")
+            recipient = m.get("recipient", "?")
+            content = (m.get("content") or "").strip()
+            local_ts = ts.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %H:%M %Z")
+            lines.append(f"## {local_ts} — {sender} → {recipient}")
+            lines.append("")
+            lines.append(content)
+            lines.append("")
+
+    return "\n".join(lines) + "\n"
+
+
+def main() -> int:
+    messages = fetch_messages()
+    output = render(messages)
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(output, encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

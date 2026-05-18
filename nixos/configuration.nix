@@ -18,6 +18,14 @@
   networking.hostName = "tc-nest";
   networking.networkmanager.enable = true;  # T1-7 fix — no network without this
 
+  # ── Bluetooth ────────────────────────────────────────────────────────────
+  # Enabled 2026-05-05 for Venus's smart-speaker build. BlueZ + bluetoothctl
+  # tooling installed via packages.nix; service runs on boot; pairing managed via CLI.
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+
   # All bypass-netns iptables rules live here. The firewall module
   # re-applies extraCommands on every firewall reload (and rebuilds),
   # so these survive; tc-netns only handles kernel-level topology.

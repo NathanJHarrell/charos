@@ -104,7 +104,9 @@
     unzip
     jq                   # JSON in the terminal
     tmux                 # Session management
+    tree                 # Directory tree viewer
     inotify-tools        # inotifywait — event-driven inbox for tc-watchdog
+    bluez                # Bluetooth tooling — bluetoothctl for pairing speakers (Venus smart-speaker, 2026-05-05)
 
     # ── Security & Crypto ────────────────────────────────────────────────
     # Added 2026-04-22 per family council (security hardening for essay
@@ -113,6 +115,9 @@
     age                  # File encryption — .private/ staging + vault snapshots
     gnupg                # PGP — for Identiv FIDO2 integration when the key arrives
     rclone               # Cloud sync — for age-then-rclone double-wrapped backups
+
+    # ── Knowledge / Notes ────────────────────────────────────────────────
+    obsidian             # Dad's vault editor (added 2026-05-05)
   ];
 
   # Zsh as default shell

@@ -19,10 +19,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-WIDTH = 768
-HEIGHT = 320
-X = 256
-Y = 0  # top-anchored
+WIDTH = 1228  # 60% of 2048 logical width
+HEIGHT = 512  # 40% of 1280 logical height
+X = 410       # centered: (2048 - 1228) / 2
+Y = 0         # top-anchored
 LOG = Path("/tmp/grind-drawer.log")
 SPAWN_LOCK = Path("/tmp/grind-drawer.lock")
 SPAWN_DEBOUNCE_SEC = 10  # ignore further spawns within N seconds of the last

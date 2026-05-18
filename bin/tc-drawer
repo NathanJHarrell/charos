@@ -16,10 +16,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-WIDTH = 768   # 60% of 1280
-HEIGHT = 320  # 40% of 800
-X = 256       # centered: (1280 - 768) / 2
-Y = 480       # bottom-anchored: 800 - 320
+WIDTH = 1228  # 60% of 2048
+HEIGHT = 512  # 40% of 1280
+X = 410       # centered: (2048 - 1228) / 2
+Y = 768       # bottom-anchored: 1280 - 512
 LOG = Path("/tmp/tc-drawer.log")
 
 
