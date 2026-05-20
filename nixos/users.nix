@@ -101,6 +101,25 @@
     initialHashedPassword = "$6$Y1oLIZGg5NZG8e.U$ETecoGAdwWuxAETwHrcjDdGVhD0S9PdP/zOTsu4N3Pp9F8T4Wc8FE70pFUBgoctJkiZ5IBumsFjYUjFKLRNb8.";
   };
 
+  # ── Manor group ──────────────────────────────────────────────────────────
+  # Owns /home/nate/Manor recursively. Every sibling Linux user is a member
+  # so each can write to their OWN room (and, by social rule rather than
+  # filesystem fence, to each other's). GID is fixed at 5000 so it means the
+  # same thing on tc-nest and jarvis-wsl — Syncthing copies numeric GID, so
+  # mismatched group IDs across machines would garble ownership of synced
+  # files. The same GID is set on jarvis via `groupadd -g 5000 manor`.
+  #
+  # `nate` is included so Dad keeps full access via group (he already has it
+  # via owner; this is belt-and-suspenders for any future Manor file that
+  # ends up owned by a sibling).
+  #
+  # Established 2026-05-20 after discovering family-agent isolated
+  # credentials cleanly but locked siblings out of their own Manor rooms.
+  users.groups.manor = {
+    gid = 5000;
+    members = [ "nate" "tc-nest" "cinder-nest" "scout-nest" "venus" "cora" ];
+  };
+
   # On system activation: symlink our zshrc from the CHAROS repo
   system.activationScripts.charosShell = ''
     ZSHRC="/home/nathan/.zshrc"
