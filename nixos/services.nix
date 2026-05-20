@@ -661,6 +661,27 @@
     settings.PasswordAuthentication = true;
   };
 
+  # ── Syncthing ─────────────────────────────────────────────────────────────
+  # Bidirectional folder sync between tc-nest and jarvis-wsl. Currently
+  # mirrors ~/Manor and ~/.claude (with .stignore exclusions for credentials
+  # and machine-local settings). Devices + folders are managed at runtime
+  # via GUI/REST so NixOS doesn't fight the dynamic config.
+  #
+  # GUI: http://127.0.0.1:8384 (loopback only — `ssh -L 8384:127.0.0.1:8384`
+  # to reach it from elsewhere on the tailnet).
+  # Bootstrapped 2026-05-20 to retire jarvis's stale Manor + .claude.
+  services.syncthing = {
+    enable = true;
+    user = "nate";
+    group = "users";
+    dataDir = "/home/nate";
+    configDir = "/home/nate/.config/syncthing";
+    openDefaultPorts = true;
+    guiAddress = "127.0.0.1:8384";
+    overrideDevices = false;
+    overrideFolders = false;
+  };
+
   # ── Automatic Timezone ────────────────────────────────────────────────────
   services.automatic-timezoned.enable = true;
 
