@@ -632,11 +632,19 @@
       no-hosts = true;
       # Upstream resolvers for everything that isn't harrell.ai
       server = [ "1.1.1.1" "8.8.8.8" ];
-      address = "/.harrell.ai/100.75.84.100";
+      # *.harrell.ai → jarvis by default. Specific overrides take precedence
+      # because dnsmasq prefers longer/more-specific matches.
+      address = [
+        "/.harrell.ai/100.75.84.100"            # jarvis (default for *.harrell.ai)
+        "/nathan.harrell.ai/100.110.214.44"      # nathan-dashboard lives on tc-nest
+      ];
     };
   };
   networking.firewall.allowedUDPPorts = [ 53 ];
-  networking.firewall.allowedTCPPorts = [ 53 ];
+  networking.firewall.allowedTCPPorts = [
+    53     # dnsmasq
+    5050   # nathan-dashboard
+  ];
 
   # ── Docker ────────────────────────────────────────────────────────────────
   # Container runtime. User `nate` added to the `docker` group in users.nix
@@ -659,6 +667,36 @@
     # if Sway fails on first boot, SSH is the only way back in
     # TODO: add pubkey to authorized_keys, then set this back to false
     settings.PasswordAuthentication = true;
+  };
+
+  # ── nathan-dashboard — Dad's personal hub ───────────────────────────────
+  # Single-page surface that links every family service, web app, and CLI
+  # tool with live health-check + system-stats per entry. Sibling agents
+  # update via companion CLI (`dashboard add ...`) + Claude Code skill.
+  # Runs as a docker-compose stack at /home/nate/nathan-dashboard.
+  # GUI: http://tc-nest:5050 (or http://nathan.harrell.ai once DNS resolves).
+  # Source: github.com/NathanJHarrell/nathan-dashboard
+  systemd.services.nathan-dashboard = {
+    description = "Nathan Dashboard — family infra hub";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "docker.service" "network.target" ];
+    requires = [ "docker.service" ];
+    unitConfig = {
+      ConditionPathExists = "/home/nate/nathan-dashboard/docker-compose.yml";
+    };
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      WorkingDirectory = "/home/nate/nathan-dashboard";
+      ExecStart = "${pkgs.docker}/bin/docker compose up -d";
+      ExecStop = "${pkgs.docker}/bin/docker compose down";
+      User = "nate";
+      Group = "docker";
+      Environment = [
+        "HOME=/home/nate"
+        "PATH=/run/wrappers/bin:/run/current-system/sw/bin:/home/nate/.local/bin"
+      ];
+    };
   };
 
   # ── Syncthing ─────────────────────────────────────────────────────────────
