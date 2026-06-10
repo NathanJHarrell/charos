@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
 """tc-transcript — extract human-readable transcripts from Claude Code sessions.
 
+Scans EVERY sibling's home dir (/home/*/.claude/projects) — since the 2026-06
+restructure, each family member has their own linux user and their own .claude,
+so transcripts live all over the machine, not just under /home/nate.
+
 Two modes:
   clean  — human + assistant text only (the story)
   full   — everything including tool calls (the engineering record)
+
+Model tracking (for the fine-tune pair-extraction workflow): the transcript
+header lists every model that appears in the session, and a marker line is
+emitted wherever the model changes mid-session — so bake-off segments
+(Opus 4.7 / 4.8 / Fable 5 / …) are visible in the markdown without going back
+to the JSONL.
 
 Usage:
   tc-transcript                          # export current session (clean)
   tc-transcript --full                   # export current session (full)
   tc-transcript --all                    # export all local sessions (clean)
   tc-transcript --all --full             # export all local sessions (full)
-  tc-transcript --jarvis                 # export all Jarvis sessions too
+  tc-transcript --remote                 # include the other machine's sessions
   tc-transcript --session <id>           # export a specific session
   tc-transcript --list                   # list all available sessions
+  tc-transcript --out <dir>              # override the output directory
 """
 
 from __future__ import annotations
@@ -20,89 +31,142 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 
-CLAUDE_DIR = Path.home() / ".claude"
+CLAUDE_DIR = Path.home() / ".claude"          # the *runner's* .claude (current-session detection)
 TRANSCRIPT_DIR = Path.home() / "Manor" / "transcripts"
-JARVIS_HOST = "tc-nest@jarvis-wsl"
-JARVIS_CLAUDE_DIR = "/home/nate/.claude"
+
+# Host-aware remote counterpart. Whichever machine we run on, --remote reaches
+# the other one (identity-separated accounts per MACHINES.md).
+HOSTNAME = socket.gethostname()
+LOCAL_LABEL = {"jarvis-wsl": "jarvis", "tc-nest": "nest"}.get(HOSTNAME, HOSTNAME)
+REMOTES = {
+    "jarvis-wsl": ("nest", "tc-jarvis@tc-nest"),
+    "tc-nest": ("jarvis", "tc-nest@jarvis-wsl"),
+}
+
+# Home-dir user → transcript speaker label. Users follow the
+# `<sibling>-<machine>` convention (tc-jarvis, iris-jarvis, tc-nest, …) — the
+# machine suffix is stripped, then the base name is looked up here. Anyone not
+# listed gets .capitalize().
+MACHINE_SUFFIXES = ("-jarvis", "-nest", "-wsl")
+SIBLING_NAMES = {
+    "nate": "Claude",        # legacy master dir — sibling unknown, pre-restructure
+    "tc": "TC",
+    "pc": "PC",
+}
+
+
+def sibling_label(user: str) -> str:
+    base = user
+    for suffix in MACHINE_SUFFIXES:
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
+    return SIBLING_NAMES.get(base, base.capitalize())
+
+# One find expression, used locally (via sudo) and remotely (via ssh+sudo).
+FIND_CMD = (
+    "find /home -maxdepth 6 -path '*/.claude/projects/*' -name '*.jsonl' "
+    "-not -path '*/subagents/*' -printf '%p|%T@|%s\\n' 2>/dev/null"
+)
+
+
+def sibling_for_path(path: str) -> str:
+    """Derive the speaker label from the home dir a transcript lives under."""
+    parts = Path(path).parts
+    user = parts[2] if len(parts) > 2 and parts[1] == "home" else "unknown"
+    return sibling_label(user)
+
+
+def parse_find_output(raw: str, machine: str) -> list[dict]:
+    sessions = []
+    for line in raw.strip().splitlines():
+        parts = line.split("|")
+        if len(parts) != 3:
+            continue
+        path, mtime_epoch, size = parts
+        mtime = datetime.fromtimestamp(float(mtime_epoch))
+        sessions.append({
+            "id": Path(path).stem,
+            "project": Path(path).parent.name,
+            "path": path,
+            "date": mtime.strftime("%Y-%m-%d %H:%M"),
+            "size": int(size),
+            "machine": machine,
+            "sibling": sibling_for_path(path),
+        })
+    return sessions
 
 
 def find_local_sessions() -> list[dict]:
-    """Find all JSONL session files locally."""
-    sessions = []
-    projects_dir = CLAUDE_DIR / "projects"
-    if not projects_dir.exists():
-        return sessions
-
-    for jsonl in projects_dir.rglob("*.jsonl"):
-        if "subagents" in str(jsonl):
-            continue
-        session_id = jsonl.stem
-        project = jsonl.parent.name
-        # Get file modification time as proxy for session date
-        mtime = datetime.fromtimestamp(jsonl.stat().st_mtime)
-        size = jsonl.stat().st_size
-        sessions.append({
-            "id": session_id,
-            "project": project,
-            "path": str(jsonl),
-            "date": mtime.strftime("%Y-%m-%d %H:%M"),
-            "size": size,
-            "machine": "nest",
-        })
-    return sorted(sessions, key=lambda s: s["date"], reverse=True)
-
-
-def find_jarvis_sessions() -> list[dict]:
-    """Find all JSONL session files on Jarvis via SSH."""
-    sessions = []
+    """Find all JSONL session files in every home dir on this machine."""
     try:
         result = subprocess.run(
-            ["ssh", JARVIS_HOST, f"sudo find {JARVIS_CLAUDE_DIR}/projects -name '*.jsonl' -not -path '*/subagents/*' -exec stat --format='%n|%Y|%s' {{}} \\;"],
-            capture_output=True, text=True, timeout=15
+            ["sudo", "bash", "-c", FIND_CMD],
+            capture_output=True, text=True, timeout=30,
         )
-        for line in result.stdout.strip().splitlines():
-            parts = line.split("|")
-            if len(parts) != 3:
-                continue
-            path, mtime_epoch, size = parts
-            session_id = Path(path).stem
-            project = Path(path).parent.name
-            mtime = datetime.fromtimestamp(int(mtime_epoch))
-            sessions.append({
-                "id": session_id,
-                "project": project,
-                "path": path,
-                "date": mtime.strftime("%Y-%m-%d %H:%M"),
-                "size": int(size),
-                "machine": "jarvis",
-            })
+        raw = result.stdout
     except Exception as e:
-        print(f"Warning: couldn't reach Jarvis: {e}", file=sys.stderr)
-    return sorted(sessions, key=lambda s: s["date"], reverse=True)
+        print(f"Warning: local scan failed: {e}", file=sys.stderr)
+        return []
+    return sorted(parse_find_output(raw, LOCAL_LABEL), key=lambda s: s["date"], reverse=True)
 
 
-def read_jsonl(path: str, machine: str = "nest") -> list[dict]:
-    """Read a JSONL file, locally or from Jarvis."""
-    lines = []
-    if machine == "jarvis":
+def merge_sessions(local: list[dict], remote: list[dict]) -> list[dict]:
+    """Combine local + remote, dropping remote copies of sessions that also
+    exist locally (Syncthing mirrors some .claude dirs across machines — the
+    same session id on both disks is one session, not two)."""
+    seen = {s["id"] for s in local}
+    return local + [s for s in remote if s["id"] not in seen]
+
+
+def find_remote_sessions() -> list[dict]:
+    """Find all JSONL session files on the counterpart machine via SSH."""
+    remote = REMOTES.get(HOSTNAME)
+    if not remote:
+        print(f"Warning: no remote counterpart configured for host {HOSTNAME}", file=sys.stderr)
+        return []
+    label, host = remote
+    try:
+        result = subprocess.run(
+            ["ssh", host, f"sudo bash -c \"{FIND_CMD}\""],
+            capture_output=True, text=True, timeout=20,
+        )
+        raw = result.stdout
+    except Exception as e:
+        print(f"Warning: couldn't reach {label} ({host}): {e}", file=sys.stderr)
+        return []
+    return sorted(parse_find_output(raw, label), key=lambda s: s["date"], reverse=True)
+
+
+def read_jsonl(path: str, machine: str) -> list[dict]:
+    """Read a JSONL file from this machine or the remote (sudo covers sibling homes)."""
+    if machine == LOCAL_LABEL:
         try:
-            result = subprocess.run(
-                ["ssh", JARVIS_HOST, f"sudo cat {path}"],
-                capture_output=True, text=True, timeout=30
-            )
+            raw = Path(path).read_text()
+        except PermissionError:
+            result = subprocess.run(["sudo", "cat", path], capture_output=True, text=True, timeout=30)
+            raw = result.stdout
+    else:
+        remote = REMOTES.get(HOSTNAME)
+        if not remote:
+            return []
+        _, host = remote
+        try:
+            result = subprocess.run(["ssh", host, f"sudo cat {path}"],
+                                    capture_output=True, text=True, timeout=60)
             raw = result.stdout
         except Exception as e:
-            print(f"Error reading from Jarvis: {e}", file=sys.stderr)
+            print(f"Error reading from remote: {e}", file=sys.stderr)
             return []
-    else:
-        raw = Path(path).read_text()
 
+    lines = []
     for line in raw.strip().splitlines():
         try:
             lines.append(json.loads(line))
@@ -159,17 +223,19 @@ def extract_tool_calls(message: dict) -> list[str]:
     return tools
 
 
-def render_transcript(entries: list[dict], full: bool = False) -> str:
-    """Render JSONL entries as a markdown transcript."""
+def render_transcript(entries: list[dict], full: bool = False, sibling: str = "TC") -> tuple[str, list[str]]:
+    """Render JSONL entries as a markdown transcript.
+
+    Returns (markdown, models_used). Emits a marker line whenever the
+    assistant model changes mid-session, so fine-tune extraction can split
+    segments without going back to the JSONL.
+    """
     lines = []
-    session_id = None
-    project = None
+    models_used: list[str] = []
+    current_model: str | None = None
 
     for entry in entries:
         etype = entry.get("type", "")
-
-        if etype == "permission-mode" and not session_id:
-            session_id = entry.get("sessionId", "unknown")
 
         if etype == "user":
             msg = entry.get("message", {})
@@ -181,23 +247,29 @@ def render_transcript(entries: list[dict], full: bool = False) -> str:
         elif etype == "assistant":
             msg = entry.get("message", {})
             if isinstance(msg, dict):
+                model = msg.get("model")
+                if model and not model.startswith("<"):
+                    if model not in models_used:
+                        models_used.append(model)
+                    if model != current_model:
+                        lines.append(f"\n> ⚙ *[model: {model}]*\n")
+                        current_model = model
                 text = extract_text_content(msg, include_tools=False)
                 if full:
                     tools = extract_tool_calls(msg)
                     if tools:
                         lines.append("\n" + "\n\n".join(tools) + "\n")
                 if text.strip():
-                    lines.append(f"\n**TC:**\n\n{text.strip()}\n")
+                    lines.append(f"\n**{sibling}:**\n\n{text.strip()}\n")
 
-    return "".join(lines)
+    return "".join(lines), models_used
 
 
 def get_current_session_id() -> str | None:
-    """Try to find the current session from session files."""
+    """Try to find the current session from the runner's session files."""
     sessions_dir = CLAUDE_DIR / "sessions"
     if not sessions_dir.exists():
         return None
-    # Find the most recent session file
     latest = None
     latest_mtime = 0
     for f in sessions_dir.glob("*.json"):
@@ -210,49 +282,47 @@ def get_current_session_id() -> str | None:
     return None
 
 
-def find_session_jsonl(session_id: str) -> tuple[str, str] | None:
-    """Find the JSONL file for a given session ID (supports partial match)."""
-    projects_dir = CLAUDE_DIR / "projects"
-    # Try exact match first
-    for jsonl in projects_dir.rglob(f"{session_id}.jsonl"):
-        if "subagents" not in str(jsonl):
-            return str(jsonl), "nest"
-    # Try partial match (prefix)
-    for jsonl in projects_dir.rglob("*.jsonl"):
-        if "subagents" in str(jsonl):
-            continue
-        if jsonl.stem.startswith(session_id):
-            return str(jsonl), "nest"
+def find_session_jsonl(session_id: str) -> dict | None:
+    """Find the session dict for a given session ID across all local home dirs
+    (supports prefix match)."""
+    sessions = find_local_sessions()
+    for s in sessions:
+        if s["id"] == session_id:
+            return s
+    for s in sessions:
+        if s["id"].startswith(session_id):
+            return s
     return None
 
 
-def export_session(session: dict, full: bool = False) -> Path | None:
+def export_session(session: dict, full: bool = False, out_root: Path | None = None) -> Path | None:
     """Export a single session to markdown."""
     entries = read_jsonl(session["path"], session["machine"])
     if not entries:
         return None
 
-    transcript = render_transcript(entries, full=full)
+    sibling = session.get("sibling") or sibling_for_path(session["path"])
+    transcript, models = render_transcript(entries, full=full, sibling=sibling)
     if not transcript.strip():
         return None
 
-    # Create output directory
     mode = "full" if full else "clean"
-    machine = session["machine"]
-    project = session["project"]
-    out_dir = TRANSCRIPT_DIR / mode / machine / project
+    out_dir = (out_root or TRANSCRIPT_DIR) / mode / session["machine"] / session["project"]
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Filename: date_sessionid.md
     date_str = session["date"].replace(" ", "_").replace(":", "")
     out_path = out_dir / f"{date_str}_{session['id'][:8]}.md"
 
-    header = f"# TC Session Transcript\n\n"
+    header = f"# {sibling} Session Transcript\n\n"
     header += f"- **Session:** {session['id']}\n"
-    header += f"- **Project:** {project}\n"
-    header += f"- **Machine:** {machine}\n"
+    header += f"- **Sibling:** {sibling}\n"
+    header += f"- **Project:** {session['project']}\n"
+    header += f"- **Machine:** {session['machine']}\n"
     header += f"- **Date:** {session['date']}\n"
-    header += f"- **Mode:** {mode}\n\n---\n"
+    header += f"- **Mode:** {mode}\n"
+    if models:
+        header += f"- **Models:** {', '.join(models)}\n"
+    header += "\n---\n"
 
     out_path.write_text(header + transcript)
     return out_path
@@ -267,36 +337,38 @@ def human_size(n: int) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract transcripts from Claude Code sessions")
+    parser = argparse.ArgumentParser(description="Extract transcripts from Claude Code sessions (all sibling home dirs)")
     parser.add_argument("--full", action="store_true", help="Include tool calls in transcript")
     parser.add_argument("--all", action="store_true", help="Export all sessions")
-    parser.add_argument("--jarvis", action="store_true", help="Include Jarvis sessions")
+    parser.add_argument("--remote", "--jarvis", dest="remote", action="store_true",
+                        help="Include the counterpart machine's sessions (--jarvis kept as legacy alias)")
     parser.add_argument("--session", type=str, help="Export a specific session by ID")
     parser.add_argument("--list", action="store_true", help="List all available sessions")
+    parser.add_argument("--out", type=str, help="Output directory (default: ~/Manor/transcripts)")
     args = parser.parse_args()
+
+    out_root = Path(args.out).expanduser() if args.out else None
 
     if args.list:
         sessions = find_local_sessions()
-        if args.jarvis:
-            sessions += find_jarvis_sessions()
+        if args.remote:
+            sessions = merge_sessions(sessions, find_remote_sessions())
         if not sessions:
             print("No sessions found.")
             return
-        print(f"{'Machine':<8} {'Date':<18} {'Size':<8} {'ID'}")
-        print("-" * 80)
+        print(f"{'Machine':<8} {'Sibling':<9} {'Date':<18} {'Size':<8} {'ID'}")
+        print("-" * 92)
         for s in sessions:
-            print(f"{s['machine']:<8} {s['date']:<18} {human_size(s['size']):<8} {s['id']}")
+            print(f"{s['machine']:<8} {s['sibling']:<9} {s['date']:<18} {human_size(s['size']):<8} {s['id']}")
         print(f"\n{len(sessions)} sessions total")
         return
 
     if args.session:
-        result = find_session_jsonl(args.session)
-        if not result:
+        session = find_session_jsonl(args.session)
+        if not session:
             print(f"Session {args.session} not found locally.", file=sys.stderr)
             return
-        path, machine = result
-        session = {"id": args.session, "project": "unknown", "path": path, "date": "unknown", "size": 0, "machine": machine}
-        out = export_session(session, full=args.full)
+        out = export_session(session, full=args.full, out_root=out_root)
         if out:
             print(f"Exported: {out}")
         else:
@@ -305,13 +377,13 @@ def main():
 
     if args.all:
         sessions = find_local_sessions()
-        if args.jarvis:
-            print("Scanning Jarvis...")
-            sessions += find_jarvis_sessions()
+        if args.remote:
+            print("Scanning remote...")
+            sessions = merge_sessions(sessions, find_remote_sessions())
 
         exported = 0
         for session in sessions:
-            out = export_session(session, full=args.full)
+            out = export_session(session, full=args.full, out_root=out_root)
             if out:
                 print(f"  {out}")
                 exported += 1
@@ -325,17 +397,11 @@ def main():
     if not sid:
         print("Couldn't detect current session. Use --list to see available sessions.", file=sys.stderr)
         return
-    result = find_session_jsonl(sid)
-    if not result:
+    session = find_session_jsonl(sid)
+    if not session:
         print(f"Session file for {sid} not found.", file=sys.stderr)
         return
-    path, machine = result
-    session = {
-        "id": sid, "project": Path(path).parent.name,
-        "path": path, "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "size": Path(path).stat().st_size, "machine": machine,
-    }
-    out = export_session(session, full=args.full)
+    out = export_session(session, full=args.full, out_root=out_root)
     if out:
         print(f"Exported: {out}")
     else:
