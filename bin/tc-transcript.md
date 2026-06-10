@@ -16,6 +16,12 @@ emitted wherever the model changes mid-session — bake-off segments
 (Opus 4.7 / 4.8 / Fable 5 / …) are visible in the markdown without going back
 to the JSONL.
 
+**Chapter + label rendering:** `/rename` commands become `## 📖 <title>`
+chapter headings (Dad renames the session at each focus shift — title carries
+the chapter name). Bash lines containing `MARK:` or `CHAPTER:` become `> 🏷`
+callouts (inline training-pair labels). Other slash commands render as compact
+`> ⌘` one-liners instead of raw tag soup.
+
 **Host-aware:** runs on either machine. `--remote` reaches the counterpart
 (`jarvis-wsl` ⇄ `tc-nest`) over SSH using the identity-separated accounts from
 MACHINES.md. `--jarvis` is kept as a legacy alias for `--remote`.

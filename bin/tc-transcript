@@ -196,6 +196,52 @@ def extract_text_content(message: dict, include_tools: bool = False) -> str:
     return ""
 
 
+import re
+
+RE_CMD_NAME = re.compile(r"<command-name>(/\S+)</command-name>")
+RE_CMD_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
+RE_BASH_INPUT = re.compile(r"<bash-input>(.*?)</bash-input>", re.S)
+RE_STDOUT = re.compile(r"<local-command-stdout>(.*?)</local-command-stdout>", re.S)
+
+
+def render_user_text(text: str) -> str | None:
+    """Format a user message for the transcript.
+
+    - /rename commands become chapter headings (## 📖 <new title>) — Dad uses
+      renames as chapter breaks, and the args carry the chapter title.
+    - Other slash commands render as a compact ⌘ one-liner instead of raw tags.
+    - Bash input lines containing MARK:/CHAPTER: annotations become 🏷 callouts
+      (Dad's inline training-pair labels); other bash input renders as `$ cmd`.
+    - Plain text passes through as a normal Nathan block.
+    Returns markdown, or None to skip the entry.
+    """
+    cmd = RE_CMD_NAME.search(text)
+    if cmd:
+        args = RE_CMD_ARGS.search(text)
+        argstr = args.group(1).strip() if args else ""
+        if cmd.group(1) == "/rename" and argstr:
+            return f"\n## 📖 {argstr}\n"
+        return f"\n> ⌘ `{(cmd.group(1) + ' ' + argstr).strip()}`\n"
+
+    bash = RE_BASH_INPUT.search(text)
+    if bash:
+        cmdline = bash.group(1).strip()
+        stdout_m = RE_STDOUT.search(text)
+        stdout = stdout_m.group(1).strip() if stdout_m else ""
+        label = next((l for l in (stdout or cmdline).splitlines()
+                      if "MARK:" in l or "CHAPTER:" in l), None)
+        if label:
+            tag = label[label.find("MARK:"):] if "MARK:" in label else label[label.find("CHAPTER:"):]
+            return f"\n> 🏷 **{tag.strip()}**\n"
+        return f"\n> `$ {cmdline.splitlines()[0][:120]}`\n"
+
+    # Plain message — strip any stray stdout blocks, keep the human text.
+    cleaned = RE_STDOUT.sub("", text).strip()
+    if not cleaned:
+        return None
+    return f"\n---\n\n**Nathan:**\n\n{cleaned}\n"
+
+
 def extract_tool_calls(message: dict) -> list[str]:
     """Extract tool call details from a message."""
     tools = []
@@ -237,12 +283,23 @@ def render_transcript(entries: list[dict], full: bool = False, sibling: str = "T
     for entry in entries:
         etype = entry.get("type", "")
 
-        if etype == "user":
+        if etype == "system" and entry.get("subtype") == "local_command":
+            # Slash commands (/rename, /model, …) log as system entries with the
+            # command tags in the entry-level content field — not under message.
+            text = entry.get("content", "") or ""
+            if text.strip():
+                rendered = render_user_text(text.strip())
+                if rendered:
+                    lines.append(rendered)
+
+        elif etype == "user":
             msg = entry.get("message", {})
             if isinstance(msg, dict):
                 text = extract_text_content(msg, include_tools=False)
                 if text.strip():
-                    lines.append(f"\n---\n\n**Nathan:**\n\n{text.strip()}\n")
+                    rendered = render_user_text(text.strip())
+                    if rendered:
+                        lines.append(rendered)
 
         elif etype == "assistant":
             msg = entry.get("message", {})
