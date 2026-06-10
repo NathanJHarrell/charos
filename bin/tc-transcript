@@ -39,7 +39,11 @@ from pathlib import Path
 
 
 CLAUDE_DIR = Path.home() / ".claude"          # the *runner's* .claude (current-session detection)
-TRANSCRIPT_DIR = Path.home() / "Manor" / "transcripts"
+# Central by default: every sibling's exports land in ONE reviewable place —
+# Dad opens this dir as an Obsidian vault. Falls back to the runner's home on
+# machines without /home/nate/Manor. Override with --out.
+_CENTRAL = Path("/home/nate/Manor/transcripts")
+TRANSCRIPT_DIR = _CENTRAL if _CENTRAL.parent.exists() else Path.home() / "Manor" / "transcripts"
 
 # Host-aware remote counterpart. Whichever machine we run on, --remote reaches
 # the other one (identity-separated accounts per MACHINES.md).
@@ -245,8 +249,11 @@ def render_user_text(text: str, full: bool = False) -> str | None:
             except (json.JSONDecodeError, ValueError):
                 pretty = blob.replace("\\n", "\n").replace('\\"', '"')
             inner = inner.replace(result_m.group(1), "\n" + pretty + "\n")
-        return (f"\n> 🔔 **Task notification** `[{fields['status'] or 'done'}]` {label}\n"
-                f"\n````\n{inner.strip()}\n````\n")
+        # Collapsed-by-default Obsidian callout ([!quote]-) so the payload
+        # doesn't swallow the page; the fence rides inside the callout.
+        payload = "\n".join("> " + l for l in f"````\n{inner.strip()}\n````".splitlines())
+        return (f"\n> [!quote]- 🔔 Task notification `[{fields['status'] or 'done'}]` {label}\n"
+                f"{payload}\n")
 
     if full:
         # Full mode: show injections, fenced so they read as harness traffic.
@@ -275,7 +282,7 @@ def render_user_text(text: str, full: bool = False) -> str | None:
                       if "MARK:" in l or "CHAPTER:" in l), None)
         if label:
             tag = label[label.find("MARK:"):] if "MARK:" in label else label[label.find("CHAPTER:"):]
-            return f"\n> 🏷 **{tag.strip()}**\n"
+            return f"\n> [!tip] 🏷 {tag.strip()}\n"
         return f"\n> `$ {cmdline.splitlines()[0][:120]}`\n"
 
     # Plain message — strip any stray stdout blocks, keep the human text.
@@ -352,7 +359,8 @@ def render_transcript(entries: list[dict], full: bool = False, sibling: str = "T
                     if model not in models_used:
                         models_used.append(model)
                     if model != current_model:
-                        lines.append(f"\n> ⚙ *[model: {model}]*\n")
+                        # Obsidian callout; degrades to a plain blockquote elsewhere.
+                        lines.append(f"\n> [!info] ⚙ model: {model}\n")
                         current_model = model
                 text = extract_text_content(msg, include_tools=False)
                 if full:
@@ -413,16 +421,20 @@ def export_session(session: dict, full: bool = False, out_root: Path | None = No
     date_str = session["date"].replace(" ", "_").replace(":", "")
     out_path = out_dir / f"{date_str}_{session['id'][:8]}.md"
 
-    header = f"# {sibling} Session Transcript\n\n"
-    header += f"- **Session:** {session['id']}\n"
-    header += f"- **Sibling:** {sibling}\n"
-    header += f"- **Project:** {session['project']}\n"
-    header += f"- **Machine:** {session['machine']}\n"
-    header += f"- **Date:** {session['date']}\n"
-    header += f"- **Mode:** {mode}\n"
+    # YAML frontmatter — Obsidian properties / Dataview / search all key off
+    # these. Keys follow the family lowercase_snake_case convention.
+    header = "---\n"
+    header += f"session: {session['id']}\n"
+    header += f"sibling: {sibling}\n"
+    header += f"project: \"{session['project']}\"\n"
+    header += f"machine: {session['machine']}\n"
+    header += f"date: \"{session['date']}\"\n"
+    header += f"mode: {mode}\n"
+    header += "type: transcript\n"
     if models:
-        header += f"- **Models:** {', '.join(models)}\n"
-    header += "\n---\n"
+        header += "models:\n" + "".join(f"  - {m}\n" for m in models)
+    header += "---\n\n"
+    header += f"# {sibling} — {session['date']} ({mode})\n"
 
     out_path.write_text(header + transcript)
     return out_path

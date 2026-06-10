@@ -16,6 +16,14 @@ emitted wherever the model changes mid-session — bake-off segments
 (Opus 4.7 / 4.8 / Fable 5 / …) are visible in the markdown without going back
 to the JSONL.
 
+**Obsidian-native output:** every export starts with YAML frontmatter
+(`session / sibling / project / machine / date / mode / models`) so Obsidian
+properties, search, and Dataview queries work across the whole vault. Model
+changes render as `> [!info]` callouts, MARK/CHAPTER labels as `> [!tip]`,
+and task-notifications as **collapsed** `> [!quote]-` callouts with the full
+payload fenced inside (expand to read, collapsed so they don't swallow the
+page). All of it degrades to plain blockquotes in non-Obsidian viewers.
+
 **Chapter + label rendering:** `/rename` commands become `## 📖 <title>`
 chapter headings (Dad renames the session at each focus shift — title carries
 the chapter name). Bash lines containing `MARK:` or `CHAPTER:` become `> 🏷`
@@ -57,7 +65,10 @@ tc-transcript --all --out /home/nate/Manor/transcripts
 
 ## Output
 
-Transcripts go to `~/Manor/transcripts/` (override with `--out`) organized as:
+Transcripts go to **`/home/nate/Manor/transcripts/`** by default — one central
+vault for every sibling's exports, designed to be opened directly as an
+Obsidian vault (falls back to `~/Manor/transcripts` off family machines;
+override with `--out`). Organized as:
 ```
 ~/Manor/transcripts/
 ├── clean/
