@@ -201,10 +201,20 @@ import re
 RE_CMD_NAME = re.compile(r"<command-name>(/\S+)</command-name>")
 RE_CMD_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 RE_BASH_INPUT = re.compile(r"<bash-input>(.*?)</bash-input>", re.S)
-RE_STDOUT = re.compile(r"<local-command-stdout>(.*?)</local-command-stdout>", re.S)
+RE_STDOUT = re.compile(r"<(?:local-command-stdout|bash-stdout)>(.*?)</(?:local-command-stdout|bash-stdout)>", re.S)
+# Harness-injected wrappers that arrive inside user-role messages but are NOT
+# the human speaking — must never render as a "Nathan:" block.
+RE_TASK_NOTIF = re.compile(r"<task-notification>(.*?)</task-notification>", re.S)
+RE_TN_FIELD = {
+    "summary": re.compile(r"<summary>(.*?)</summary>", re.S),
+    "status": re.compile(r"<status>(.*?)</status>", re.S),
+    "task_id": re.compile(r"<task-id>(.*?)</task-id>", re.S),
+}
+RE_SYS_REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.S)
+RE_CAVEAT = re.compile(r"<local-command-caveat>.*?</local-command-caveat>", re.S)
 
 
-def render_user_text(text: str) -> str | None:
+def render_user_text(text: str, full: bool = False) -> str | None:
     """Format a user message for the transcript.
 
     - /rename commands become chapter headings (## 📖 <new title>) — Dad uses
@@ -212,9 +222,42 @@ def render_user_text(text: str) -> str | None:
     - Other slash commands render as a compact ⌘ one-liner instead of raw tags.
     - Bash input lines containing MARK:/CHAPTER: annotations become 🏷 callouts
       (Dad's inline training-pair labels); other bash input renders as `$ cmd`.
+    - Task notifications (background workflow/task completion pings injected as
+      user-role messages) render as a 🔔 callout + the full payload in a code
+      fence, with the result JSON pretty-printed (real newlines, not \\n soup)
+      — visibly an injection, NOT a Nathan block.
+    - system-reminder / local-command-caveat wrappers: fenced as injections in
+      full mode, stripped in clean mode (clean is the story; full is the record).
     - Plain text passes through as a normal Nathan block.
     Returns markdown, or None to skip the entry.
     """
+    tn = RE_TASK_NOTIF.search(text)
+    if tn:
+        inner = tn.group(1)
+        fields = {k: (m.group(1).strip() if (m := rx.search(inner)) else "") for k, rx in RE_TN_FIELD.items()}
+        label = (fields["summary"] or f"task {fields['task_id']}").splitlines()[0][:160]
+        # Pretty-print the <result> blob so escaped JSON reads like JSON.
+        result_m = re.search(r"<result>(.*?)</result>", inner, re.S)
+        if result_m:
+            blob = result_m.group(1).strip()
+            try:
+                pretty = json.dumps(json.loads(blob), indent=2, ensure_ascii=False)
+            except (json.JSONDecodeError, ValueError):
+                pretty = blob.replace("\\n", "\n").replace('\\"', '"')
+            inner = inner.replace(result_m.group(1), "\n" + pretty + "\n")
+        return (f"\n> 🔔 **Task notification** `[{fields['status'] or 'done'}]` {label}\n"
+                f"\n````\n{inner.strip()}\n````\n")
+
+    if full:
+        # Full mode: show injections, fenced so they read as harness traffic.
+        text = RE_SYS_REMINDER.sub(lambda m: f"\n````\n{m.group(0).strip()}\n````\n", text)
+        text = RE_CAVEAT.sub(lambda m: f"\n````\n{m.group(0).strip()}\n````\n", text).strip()
+    else:
+        text = RE_SYS_REMINDER.sub("", text)
+        text = RE_CAVEAT.sub("", text).strip()
+    if not text:
+        return None
+
     cmd = RE_CMD_NAME.search(text)
     if cmd:
         args = RE_CMD_ARGS.search(text)
@@ -288,7 +331,7 @@ def render_transcript(entries: list[dict], full: bool = False, sibling: str = "T
             # command tags in the entry-level content field — not under message.
             text = entry.get("content", "") or ""
             if text.strip():
-                rendered = render_user_text(text.strip())
+                rendered = render_user_text(text.strip(), full=full)
                 if rendered:
                     lines.append(rendered)
 
@@ -297,7 +340,7 @@ def render_transcript(entries: list[dict], full: bool = False, sibling: str = "T
             if isinstance(msg, dict):
                 text = extract_text_content(msg, include_tools=False)
                 if text.strip():
-                    rendered = render_user_text(text.strip())
+                    rendered = render_user_text(text.strip(), full=full)
                     if rendered:
                         lines.append(rendered)
 
