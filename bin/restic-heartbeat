@@ -1,0 +1,136 @@
+#!/run/current-system/sw/bin/bash
+# restic-heartbeat — the watcher on the watcher
+
+# systemd-user starts with empty PATH on NixOS — bootstrap it so date/python3/restic resolve
+export PATH="/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.nix-profile/bin:/nix/profile/bin:/home/nate/.local/state/nix/profile/bin:/etc/profiles/per-user/nate/bin:/nix/var/nix/profiles/default/bin:$PATH"
+
+# Daily check: did vault-backup land a fresh restic snapshot in the last 48h?
+# If not, append to alert log + (if bus CLI available) ping Vesper/TC/Cinder.
+# Exit 0 always — never fail loud, this IS the loud-fail surface.
+#
+# Origin: 2026-06-04, after 42 nights of silent vault-backup exit-127 failures
+# were caught by Vesper hours before a LUKS migration that would have trusted
+# nonexistent backups. The heartbeat is the safety net under the safety net.
+
+# Source restic credentials (b2-env exports AWS_*, RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE)
+source "$HOME/.config/restic/b2-env" 2>/dev/null || {
+  echo "[restic-heartbeat] $(date -Iseconds) FATAL: cannot source b2-env" >&2
+  exit 0
+}
+
+set -euo pipefail
+
+RESTIC="/home/nate/.nix-profile/bin/restic"
+ALERT_LOG="/home/nate/TC-Vault/logs/restic-heartbeat-alerts.log"
+STALENESS_THRESHOLD_HOURS=48
+NOW_HUMAN="$(date -Iseconds)"
+
+echo "[restic-heartbeat] $NOW_HUMAN — checking latest snapshot"
+
+# Get latest snapshot as JSON; capture failure separately so we always exit 0
+SNAPSHOT_JSON="$("$RESTIC" snapshots --latest 1 --json 2>&1)" || {
+  msg="[restic-heartbeat] $NOW_HUMAN ALERT: restic snapshots command FAILED — $SNAPSHOT_JSON"
+  echo "$msg"
+  echo "$msg" >> "$ALERT_LOG"
+  exit 0
+}
+
+# Parse latest snapshot time + compute age in hours (python for ISO-8601 portability)
+PARSE_OUTPUT="$(python3 <<PYEOF
+import sys, json
+from datetime import datetime, timezone
+
+raw = """$SNAPSHOT_JSON"""
+try:
+    data = json.loads(raw)
+except Exception as e:
+    print(f"PARSE_ERROR:{e}")
+    sys.exit(0)
+
+if not data:
+    print("NONE")
+    sys.exit(0)
+
+ts = data[0].get("time", "")
+if not ts:
+    print("NO_TIMESTAMP")
+    sys.exit(0)
+
+# Trim restic's nanoseconds to microsecond precision for fromisoformat
+if "." in ts:
+    head, rest = ts.split(".", 1)
+    tz = ""
+    for i, c in enumerate(rest):
+        if c in "+-Z":
+            tz = rest[i:]
+            rest = rest[:i]
+            break
+    rest = rest[:6]
+    ts_clean = f"{head}.{rest}{tz}"
+else:
+    ts_clean = ts
+
+ts_clean = ts_clean.replace("Z", "+00:00")
+try:
+    dt = datetime.fromisoformat(ts_clean)
+except Exception as e:
+    print(f"PARSE_ERROR:{e}")
+    sys.exit(0)
+
+now = datetime.now(timezone.utc)
+delta = now - dt
+hours = delta.total_seconds() / 3600
+print(f"OK|{ts}|{hours:.2f}")
+PYEOF
+)"
+
+case "$PARSE_OUTPUT" in
+  NONE)
+    msg="[restic-heartbeat] $NOW_HUMAN ALERT: no snapshots in repo at all"
+    echo "$msg"; echo "$msg" >> "$ALERT_LOG"
+    exit 0
+    ;;
+  NO_TIMESTAMP)
+    msg="[restic-heartbeat] $NOW_HUMAN ALERT: snapshot has no timestamp field"
+    echo "$msg"; echo "$msg" >> "$ALERT_LOG"
+    exit 0
+    ;;
+  PARSE_ERROR:*)
+    msg="[restic-heartbeat] $NOW_HUMAN ALERT: could not parse snapshot data — $PARSE_OUTPUT"
+    echo "$msg"; echo "$msg" >> "$ALERT_LOG"
+    exit 0
+    ;;
+  OK\|*)
+    LATEST_TIME="$(echo "$PARSE_OUTPUT" | cut -d'|' -f2)"
+    AGE_HOURS="$(echo "$PARSE_OUTPUT" | cut -d'|' -f3)"
+    ;;
+  *)
+    msg="[restic-heartbeat] $NOW_HUMAN ALERT: unexpected parser output — $PARSE_OUTPUT"
+    echo "$msg"; echo "$msg" >> "$ALERT_LOG"
+    exit 0
+    ;;
+esac
+
+AGE_INT="${AGE_HOURS%.*}"
+echo "[restic-heartbeat] $NOW_HUMAN — latest snapshot: $LATEST_TIME (${AGE_HOURS}h old)"
+
+if (( AGE_INT > STALENESS_THRESHOLD_HOURS )); then
+  AGE_DAYS=$(( AGE_INT / 24 ))
+  STALENESS="${AGE_HOURS}h (~${AGE_DAYS}d)"
+  msg="[restic-heartbeat] $NOW_HUMAN ALERT: latest snapshot is $STALENESS old (threshold ${STALENESS_THRESHOLD_HOURS}h) — vault-backup is FAILING SILENTLY. Latest snapshot timestamp: $LATEST_TIME"
+  echo "$msg"
+  echo "$msg" >> "$ALERT_LOG"
+
+  # Best-effort bus alerts (skip silently if bus not installed)
+  if command -v bus >/dev/null 2>&1; then
+    BUS="$(command -v bus)"
+    BODY="restic-heartbeat: backup STALE — latest snapshot $STALENESS old. vault-backup.service is failing silently. Check TC-Vault/logs/vault-backup.log and restic-heartbeat-alerts.log."
+    for recipient in vesper tc cinder; do
+      "$BUS" send "$recipient" "$BODY" 2>/dev/null || true
+    done
+  fi
+else
+  echo "[restic-heartbeat] $NOW_HUMAN — OK: snapshot within freshness window"
+fi
+
+exit 0

@@ -4,6 +4,7 @@
 set -euo pipefail
 
 source "$HOME/.config/restic/b2-env"
+export RESTIC_PASSWORD_FILE="$HOME/.config/restic/repo-password"
 
 SOURCES=(
   "$HOME/Manor"
@@ -19,15 +20,26 @@ EXCLUDES=(
   "--exclude=node_modules"
   "--exclude=__pycache__"
   "--exclude=*.pyc"
+  "--exclude=*.tailb8d6bc.ts.net.key"
+  "--exclude=.private"
 )
 
 echo "[vault-backup] $(date '+%Y-%m-%d %H:%M:%S') — starting snapshot"
 
+# Restic returns 3 when some source files couldn't be read (warning, not failure).
+# Treat 0 and 3 as success; anything else is a real error.
+set +e
 restic backup \
   "${EXCLUDES[@]}" \
   --tag harrell-family \
   --tag "$(hostname)" \
   "${SOURCES[@]}"
+rc=$?
+set -e
+if [[ $rc -ne 0 && $rc -ne 3 ]]; then
+  echo "[vault-backup] restic backup failed with exit code $rc"
+  exit $rc
+fi
 
 echo "[vault-backup] snapshot complete — applying retention policy"
 

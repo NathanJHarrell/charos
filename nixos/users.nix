@@ -148,8 +148,19 @@
   # credentials cleanly but locked siblings out of their own Manor rooms.
   users.groups.manor = {
     gid = 5000;
-    members = [ "nate" "tc-nest" "cinder-nest" "scout-nest" "venus" "cora" "pc-nest" "iris-nest" ];
+    members = [ "nate" "tc-nest" "cinder-nest" "cinder-jarvis" "scout-nest" "venus" "cora" "pc-nest" "iris-nest" ];
   };
+
+  # ── Cinder — passwordless sudo + journal read (2026-07-17) ──────────────
+  # Cinder was running as our sysadmin without sudo or journal read — Dad's
+  # ruling: "give Cinder passwordless sudo and journal read." Both cinder
+  # accounts are imperative (like nate/docker above), so we add them to
+  # wheel + systemd-journal via `users.groups.<name>.members` rather than
+  # augmenting extraGroups on a non-existent declarative block.
+  # NOPASSWD rule below (added to existing extraRules users list) is the
+  # belt-and-suspenders alongside wheelNeedsPassword=false.
+  users.groups.wheel.members = [ "cinder-jarvis" "cinder-nest" ];
+  users.groups.systemd-journal.members = [ "cinder-jarvis" "cinder-nest" ];
 
   # On system activation: symlink our zshrc from the CHAROS repo
   system.activationScripts.charosShell = ''
@@ -174,7 +185,7 @@
   security.sudo.wheelNeedsPassword = false;
 
   security.sudo.extraRules = [{
-    users = [ "nathan" "tc-jarvis" "tc-nest" "vesper" "venus" "pc-nest" "iris-nest" ];
+    users = [ "nathan" "tc-jarvis" "tc-nest" "vesper" "venus" "pc-nest" "iris-nest" "cinder-jarvis" "cinder-nest" ];
     commands = [{
       command = "ALL";
       options = [ "NOPASSWD" ];

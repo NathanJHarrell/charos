@@ -1,0 +1,211 @@
+#!/run/current-system/sw/bin/bash
+# restic-restore-test — verify backups can ACTUALLY restore, not just exist.
+#
+# Daily smoke test: pull a single small canonical file out of the latest
+# restic snapshot, sha256 it against the live copy, and write structured
+# verdict JSON for the dashboard to surface. Catches the "snapshots look
+# healthy but can't actually be restored" silent-failure class.
+#
+# Why /etc/hostname:
+#   - Tiny (~10 bytes), so the restore is fast and cheap.
+#   - Always present in the backup set (the snapshot covers /etc).
+#   - Very unlikely to change between backup and now, so a sha mismatch
+#     reliably means a restore problem, not a content drift.
+#
+# Exit code policy: ALWAYS 0. This script is the loud-fail surface, not a
+# fail-fast workhorse. systemd staying green is fine; the alert log + the
+# status JSON + the dashboard pill are how problems surface to Dad.
+#
+# Origin: 2026-06-05, follow-on to restic-heartbeat. The heartbeat catches
+# "no fresh snapshot landed." This script catches "fresh snapshot landed
+# but the snapshot is corrupt / not actually restorable."
+
+# systemd-user starts with empty PATH on NixOS — bootstrap it so date/sha256sum/restic resolve
+export PATH="/run/current-system/sw/bin:/run/wrappers/bin:/home/nate/.nix-profile/bin:/nix/profile/bin:/home/nate/.local/state/nix/profile/bin:/etc/profiles/per-user/nate/bin:/nix/var/nix/profiles/default/bin:$PATH"
+
+# Source restic credentials (b2-env exports AWS_*, RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE)
+source "$HOME/.config/restic/b2-env" 2>/dev/null || {
+  echo "[restic-restore-test] $(date -Iseconds) FATAL: cannot source b2-env" >&2
+  exit 0
+}
+
+set -uo pipefail
+
+RESTIC="/home/nate/.nix-profile/bin/restic"
+RESTORE_DIR="/tmp/restic-restore-test"
+ALERT_LOG="/home/nate/TC-Vault/logs/restic-restore-alerts.log"
+STATUS_JSON="/home/nate/TC-Vault/logs/restic-restore-test-status.json"
+TARGET_FILE="/etc/hostname"
+NOW_HUMAN="$(date -Iseconds)"
+
+mkdir -p "$(dirname "$ALERT_LOG")"
+
+# --- helpers ---------------------------------------------------------------
+
+# Always-cleanup trap so a partial restore never leaves crud in /tmp.
+cleanup() {
+  rm -rf "$RESTORE_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# write_status verdict details_json
+# verdict: "pass" | "fail" | "error"
+# details_json: a raw JSON object string (already-escaped) for the "details" field
+write_status() {
+  local verdict="$1"
+  local details_json="$2"
+  python3 - "$verdict" "$details_json" "$NOW_HUMAN" "$STATUS_JSON" <<'PYEOF'
+import json, sys
+verdict, details_raw, ts, path = sys.argv[1:]
+try:
+    details = json.loads(details_raw)
+except Exception:
+    details = {"raw": details_raw}
+payload = {
+    "timestamp": ts,
+    "verdict": verdict,
+    "details": details,
+}
+with open(path, "w") as f:
+    json.dump(payload, f, indent=2)
+    f.write("\n")
+PYEOF
+}
+
+log_alert() {
+  local msg="$1"
+  echo "$msg"
+  echo "$msg" >> "$ALERT_LOG"
+}
+
+# --- main flow -------------------------------------------------------------
+
+echo "[restic-restore-test] $NOW_HUMAN — starting restore smoke test (target: $TARGET_FILE)"
+
+# Live sha256 BEFORE the restic round-trip. If the live file vanishes during
+# the test we still want to know what we were comparing against.
+if [[ ! -r "$TARGET_FILE" ]]; then
+  msg="[restic-restore-test] $NOW_HUMAN ERROR: live $TARGET_FILE not readable — cannot compute baseline"
+  log_alert "$msg"
+  write_status "error" "{\"reason\": \"live target not readable\", \"target\": \"$TARGET_FILE\"}"
+  exit 0
+fi
+LIVE_SHA="$(sha256sum "$TARGET_FILE" | awk '{print $1}')"
+LIVE_BYTES="$(stat -c %s "$TARGET_FILE" 2>/dev/null || echo 0)"
+
+# Find the latest snapshot id — we restore from a specific id rather than
+# "latest" so the alert can say WHICH snapshot failed if it does.
+SNAPSHOT_JSON="$("$RESTIC" snapshots --latest 1 --json 2>&1)"
+SN_RC=$?
+if (( SN_RC != 0 )); then
+  msg="[restic-restore-test] $NOW_HUMAN ERROR: restic snapshots failed rc=$SN_RC — $SNAPSHOT_JSON"
+  log_alert "$msg"
+  write_status "error" "{\"reason\": \"restic snapshots failed\", \"rc\": $SN_RC}"
+  exit 0
+fi
+
+SNAPSHOT_ID="$(python3 -c "
+import json, sys
+try:
+    data = json.loads(sys.stdin.read())
+except Exception as e:
+    print(f'PARSE_ERROR:{e}')
+    sys.exit(0)
+if not data:
+    print('NONE')
+    sys.exit(0)
+print(data[0].get('id') or 'NONE')
+" <<< "$SNAPSHOT_JSON")"
+
+case "$SNAPSHOT_ID" in
+  NONE|PARSE_ERROR:*)
+    msg="[restic-restore-test] $NOW_HUMAN ERROR: no snapshot to restore from — $SNAPSHOT_ID"
+    log_alert "$msg"
+    write_status "error" "{\"reason\": \"no snapshot available\", \"detail\": \"$SNAPSHOT_ID\"}"
+    exit 0
+    ;;
+esac
+
+SHORT_ID="${SNAPSHOT_ID:0:12}"
+echo "[restic-restore-test] $NOW_HUMAN — restoring $TARGET_FILE from snapshot $SHORT_ID"
+
+# Fresh restore dir for every run — guarantees no stale leftovers.
+rm -rf "$RESTORE_DIR"
+mkdir -p "$RESTORE_DIR"
+
+# restic restore with --include picks just the one file out of the snapshot.
+RESTORE_OUT="$("$RESTIC" restore "$SNAPSHOT_ID" \
+  --target "$RESTORE_DIR" \
+  --include "$TARGET_FILE" 2>&1)"
+RESTORE_RC=$?
+
+if (( RESTORE_RC != 0 )); then
+  msg="[restic-restore-test] $NOW_HUMAN FAIL: restic restore failed rc=$RESTORE_RC snapshot=$SHORT_ID — ${RESTORE_OUT:0:300}"
+  log_alert "$msg"
+  write_status "fail" "$(python3 -c "
+import json
+print(json.dumps({
+    'reason': 'restic restore failed',
+    'rc': $RESTORE_RC,
+    'snapshot_id': '$SHORT_ID',
+    'snapshot_id_full': '$SNAPSHOT_ID',
+    'target': '$TARGET_FILE',
+    'restic_output': '''${RESTORE_OUT:0:500}'''.strip(),
+}))
+")"
+  exit 0
+fi
+
+RESTORED_PATH="$RESTORE_DIR$TARGET_FILE"
+if [[ ! -r "$RESTORED_PATH" ]]; then
+  msg="[restic-restore-test] $NOW_HUMAN FAIL: restic claimed success but $RESTORED_PATH does not exist (snapshot=$SHORT_ID)"
+  log_alert "$msg"
+  write_status "fail" "$(python3 -c "
+import json
+print(json.dumps({
+    'reason': 'restored file missing after successful restore',
+    'snapshot_id': '$SHORT_ID',
+    'snapshot_id_full': '$SNAPSHOT_ID',
+    'target': '$TARGET_FILE',
+    'expected_restored_path': '$RESTORED_PATH',
+}))
+")"
+  exit 0
+fi
+
+RESTORED_SHA="$(sha256sum "$RESTORED_PATH" | awk '{print $1}')"
+RESTORED_BYTES="$(stat -c %s "$RESTORED_PATH" 2>/dev/null || echo 0)"
+
+if [[ "$LIVE_SHA" == "$RESTORED_SHA" ]]; then
+  echo "[restic-restore-test] $NOW_HUMAN — PASS: sha256 match ($LIVE_SHA) snapshot=$SHORT_ID"
+  write_status "pass" "$(python3 -c "
+import json
+print(json.dumps({
+    'snapshot_id': '$SHORT_ID',
+    'snapshot_id_full': '$SNAPSHOT_ID',
+    'target': '$TARGET_FILE',
+    'live_sha256': '$LIVE_SHA',
+    'restored_sha256': '$RESTORED_SHA',
+    'live_bytes': $LIVE_BYTES,
+    'restored_bytes': $RESTORED_BYTES,
+}))
+")"
+else
+  msg="[restic-restore-test] $NOW_HUMAN FAIL: sha256 mismatch — live=$LIVE_SHA restored=$RESTORED_SHA snapshot=$SHORT_ID target=$TARGET_FILE"
+  log_alert "$msg"
+  write_status "fail" "$(python3 -c "
+import json
+print(json.dumps({
+    'reason': 'sha256 mismatch between live file and restored file',
+    'snapshot_id': '$SHORT_ID',
+    'snapshot_id_full': '$SNAPSHOT_ID',
+    'target': '$TARGET_FILE',
+    'live_sha256': '$LIVE_SHA',
+    'restored_sha256': '$RESTORED_SHA',
+    'live_bytes': $LIVE_BYTES,
+    'restored_bytes': $RESTORED_BYTES,
+}))
+")"
+fi
+
+exit 0
