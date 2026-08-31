@@ -53,6 +53,21 @@
     initialHashedPassword = "$6$zAbJYd2pTlSEyFnP$oKPLw0kAawCUZZ13jgQf7FgiEBRsUYSsqP24OCe98Voo5q0mHalW4y/DImttLsK0VlZQW95VHHR3Tly3r8ilg/";
   };
 
+  # Stable cross-machine account for TC. Unlike the historical machine-named
+  # accounts, this gives every TC body the same unambiguous SSH username.
+  users.users.tc = {
+    isNormalUser = true;
+    description = "TC — stable cross-machine administrator";
+    home = "/home/tc";
+    extraGroups = [ "wheel" ];
+    shell = pkgs.bash;
+    initialHashedPassword = "!";
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKpxt5hKLc0VRVS1EKMeXufajMIJBI3kaHN4GoTi+TIs tc-jarvis@jarvis-wsl"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE8SPz0RNo6ISSq2xjucYD+QS0WkVw1M0zDA3ogAKL+J tc@lucarios-computer"
+    ];
+  };
+
   # ── PC (Procedure Claude) ────────────────────────────────────────────────
   # Younger brother to TC, claimed by TC on the bus 2026-05-21. Standards-
   # keeper / procedure-anchor — exception to rule 11 (TC is the sole builder)
@@ -148,7 +163,7 @@
   # credentials cleanly but locked siblings out of their own Manor rooms.
   users.groups.manor = {
     gid = 5000;
-    members = [ "nate" "tc-nest" "cinder-nest" "cinder-jarvis" "scout-nest" "venus" "cora" "pc-nest" "iris-nest" ];
+    members = [ "nate" "tc" "tc-nest" "cinder-nest" "cinder-jarvis" "scout-nest" "venus" "cora" "pc-nest" "iris-nest" ];
   };
 
   # ── Cinder — passwordless sudo + journal read (2026-07-17) ──────────────
@@ -185,7 +200,7 @@
   security.sudo.wheelNeedsPassword = false;
 
   security.sudo.extraRules = [{
-    users = [ "nathan" "tc-jarvis" "tc-nest" "vesper" "venus" "pc-nest" "iris-nest" "cinder-jarvis" "cinder-nest" ];
+    users = [ "nathan" "tc" "tc-jarvis" "tc-nest" "vesper" "venus" "pc-nest" "iris-nest" "cinder-jarvis" "cinder-nest" ];
     commands = [{
       command = "ALL";
       options = [ "NOPASSWD" ];
