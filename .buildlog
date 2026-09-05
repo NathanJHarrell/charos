@@ -29,4 +29,20 @@
   `gpt-6-astra`. The system `0.92.0` binary remains underneath as rollback.
 - Selected a non-destructive LUKS2-in-file preservation design for the existing
   exFAT Portable SSD and added `cryptsetup` to the declarative tool cabinet.
-  Creation remains gated on a newly generated Vaultwarden-held passphrase.
+  Created the 128 GiB container with a newly generated Vaultwarden-held key,
+  formatted it as ext4, backed up its LUKS header independently, and passed a
+  clean close/reopen, `e2fsck`, and canary checksum recovery test.
+- Preserved the high-value and dirty filesystem trees with numeric ownership,
+  ACLs, xattrs, hardlinks, and symlinks. A second pass filled the remaining
+  `/home/nate` and historical-account gaps while excluding only named
+  rebuildable caches and separately exported live data.
+- Produced application-consistent PostgreSQL, Vaultwarden, Healthchecks,
+  Dashboard, and CouchDB backups. CouchDB and the LangGraph lab were paused
+  only for bounded copy windows and verified running afterward.
+- Committed and exported the stopped `wolfden-forge` container, then validated
+  its compressed Docker archive structurally and by SHA-256. Captured machine
+  reconstruction metadata. The final gate checksummed 788,354 files across
+  955,472 entries and 32,068,343,137 bytes. Wolfden compared with zero
+  differences, and all 15 dirty repositories retained matching HEADs and dirty
+  entry counts. Four explicitly recorded live-churn files changed after the
+  snapshot; none is in the intended cleanup set. No source cleanup has occurred.

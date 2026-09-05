@@ -17,3 +17,6 @@
   installation while retaining the NixOS package as a declarative fallback.
 - Add `cryptsetup` and specify a 128 GiB LUKS2/ext4 preservation container that
   leaves the Portable SSD's existing exFAT data intact.
+- Create and recovery-test that encrypted preservation vault; copy the selected
+  filesystem state, export live service data consistently, preserve the stopped
+  Wolfden container layer, and record checksums plus reconstruction metadata.

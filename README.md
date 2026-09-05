@@ -88,6 +88,15 @@ codex debug models
 On 2026-09-05 the live standalone version was `0.153.4`, and its catalog
 included `gpt-6-astra` alongside the GPT-5.6 family.
 
+### Pre-refresh preservation
+
+The SanDisk Portable SSD contains a 128 GiB LUKS2 container at
+`TC-Nest-Preservation/tc-nest-preservation-2026-09-05.luks`. Its ext4
+filesystem is labeled `TC-Nest-Preserve`; the unlock key is held in
+Vaultwarden, not in this repository. Before cleanup, the container passed a
+close/reopen test, `e2fsck`, and a canary checksum check. The dated storage
+inventory records what was copied, exported, and independently verified.
+
 ---
 
 ## Hardware Roadmap

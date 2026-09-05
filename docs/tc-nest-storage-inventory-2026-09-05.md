@@ -1,8 +1,8 @@
 # TC-Nest storage and preservation inventory
 
 Date: 2026-09-05  
-Mode: read-only host audit; no files, services, mounts, containers, packages, or
-Nix generations changed.
+Initial mode: read-only host audit. The later preservation execution is recorded
+below; no source cleanup or NixOS activation has occurred.
 
 ## Capacity and health
 
@@ -71,11 +71,48 @@ header, close and reopen the mapping, run an ext4 check, and restore a canary
 before any source cleanup. Never place the passphrase, Vaultwarden session, or
 decrypted secret content in logs or transcripts.
 
-At inventory time the SSD was visible on LucariOS but unmounted, so free space
-and filesystem consistency had not yet been established. LucariOS internal
-storage is critically full and must not be used as a staging area.
+At inventory time the SSD was attached directly to TC-Nest and unmounted. It
+had roughly 1.4 TB free and no attach-time kernel errors. LucariOS internal
+storage is critically full and was not used as a staging area.
+
+## Preservation execution
+
+The existing exFAT filesystem and its approximately 487 GB of prior content
+were left intact. A fully allocated 128 GiB file named
+`TC-Nest-Preservation/tc-nest-preservation-2026-09-05.luks` now contains a
+LUKS2 mapping and ext4 filesystem labeled `TC-Nest-Preserve`. Its newly
+generated key is stored in Vaultwarden. The LUKS header was copied separately
+to TC's persistent Cove-backed home and checksummed.
+
+Before data transfer, the vault passed all of these recovery gates:
+
+- close the mapper and confirm `/dev/mapper/tc-nest-preserve` disappeared;
+- retrieve the key from Vaultwarden and reopen it without a plaintext key file;
+- run a clean read-only `e2fsck`;
+- remount the filesystem and verify the README and canary SHA-256 hashes.
+
+The preservation set includes the full dirty Wolfden tree; Nathan's home with
+only named rebuildable caches excluded; the LangGraph learning lab; TC's and
+the historical family accounts' continuity state; and machine reconstruction
+metadata. Live PostgreSQL, Vaultwarden, Healthchecks, Dashboard, and CouchDB
+state was captured through logical, SQLite-online, validated JSON, or bounded
+quiesced exports as appropriate. The stopped `wolfden-forge` container was
+committed and saved as a gzip-compressed Docker archive; both gzip/tar parsing
+and its stored SHA-256 passed. The active LangGraph tree's paused checksum pass
+reported zero differences, and the service returned to running state.
+
+The final destination manifest contains 788,354 regular-file SHA-256 records,
+955,472 total filesystem entries, and 32,068,343,137 bytes. A checksum-mode
+comparison found no difference in Wolfden. Every inventoried dirty repository
+has the same source and destination HEAD and dirty-entry count. Four expected
+live-churn paths changed after the point-in-time copy: Syncthing's rebuildable
+SQLite WAL and shared-memory files, the append-only panic log, and the generated
+family-bus latest-message view. Their exact paths are retained in the encrypted
+comparison log; none is part of the proposed cleanup set.
 
 ## Release boundary
 
-This document authorizes no preservation write, service stop, export, deletion,
-garbage collection, container prune, or Nix-generation removal.
+Preservation writes and bounded export pauses were explicitly authorized and
+are complete. Deletion, garbage collection, Docker pruning, Nix-generation
+removal, and NixOS activation remain gated on completed comparison evidence and
+Nathan's explicit cleanup approval.
