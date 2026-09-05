@@ -1,0 +1,12 @@
+# CHAROS build log
+
+## 2026-09-05 — TC-Nest learning-machine refresh, compatibility phase
+
+- Audited the live NixOS host before mutation.
+- Confirmed the current 25.11 system configuration does not evaluate on the
+  26.05 stable channel because upstream removed unmaintained `neofetch`.
+- Replaced `neofetch` with maintained `fastfetch` in the isolated refresh
+  branch. Live activation remains pending a clean 26.05 evaluation and build.
+- Preserved the dirty live checkout; this work is isolated from its modified
+  `vibedeck` submodule and two untracked backup scripts.
+

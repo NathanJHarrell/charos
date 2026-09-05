@@ -68,7 +68,7 @@
     glow                 # Terminal markdown reader
     waybar               # Human dock — clickable icons + clock + status
     htop
-    neofetch             # CHAROS system info on launch
+    fastfetch            # Maintained CHAROS system info for learning-machine orientation
     lm_sensors           # CPU temps (sensors command — Ryzen 9700X Tctl)
 
     # ── Networking ───────────────────────────────────────────────────────

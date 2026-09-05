@@ -1,0 +1,8 @@
+# CHAROS changelog
+
+## Unreleased
+
+- Prepare TC-Nest for NixOS 26.05 by replacing removed `neofetch` with the
+  maintained `fastfetch` system-information tool.
+- Begin the required durable build and change records for future maintenance.
+
