@@ -28,3 +28,6 @@
 - Remove NixOS generations 1 through 61 and garbage-collect their unreachable
   store paths, reducing the boot menu to the current and immediate rollback
   generations.
+- Fast-forward canonical `main` without disturbing its pre-existing dirty
+  paths, and advance the root NixOS channel to 26.05 so `/etc/nixos` reproduces
+  the live system through the normal rebuild workflow.

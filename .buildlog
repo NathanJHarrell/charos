@@ -75,3 +75,11 @@
   21,806,080,000 bytes, `/nix/store` fell to 40 GiB, and the regenerated boot
   menu now contains exactly generations 62 and 63. Post-cleanup system and
   container health remained green.
+- Fast-forwarded canonical `/home/nate/charos` and remote `main` to the verified
+  refresh history after proving its changed paths did not overlap the live
+  checkout's dirty `vibedeck` contents or two untracked backup scripts. Their
+  porcelain-status hash remained unchanged before and after integration.
+- Advanced root's `nixos` channel from 25.11 to 26.05. A fresh evaluation
+  through `/etc/nixos/configuration.nix` now produces a 26.05 system derivation,
+  closing the downgrade trap between the live generation and the ordinary
+  future maintenance path.
