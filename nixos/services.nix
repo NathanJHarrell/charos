@@ -295,6 +295,10 @@
     };
   };
 
+  # Legacy Scout pipeline units are retained below as migration provenance but
+  # disabled on TC-Nest. The family runtime moved to Cove; this machine no
+  # longer polls the retired jarvis-wsl database or composes family state.
+
   # ── scout-pulse-poll — Live family activity snapshot ────────────────────
   # Polls tmux state, transcript dir, and Claude Code session activity.
   # Writes to raw_session_pulse table in family-brain Postgres every 1 min.
@@ -302,6 +306,7 @@
   # Authored by TC, on behalf of Scout, 2026-04-24 (handoff doc in scout-pipeline).
   # Secrets in /etc/scout-pulse.env (mode 600, not in nix store, not git-tracked).
   systemd.services.scout-pulse-poll = {
+    enable = false;
     description = "Scout pulse poll — live family activity snapshot";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -323,6 +328,7 @@
     };
   };
   systemd.timers.scout-pulse-poll = {
+    enable = false;
     description = "Fire scout-pulse-poll every 1 minute";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -336,6 +342,7 @@
   # Computes mean + std-dev across the last 7 days of daily_ledgers for each
   # signal Scout tracks. Feeds the Z-score logic in trajectories + summarize.
   systemd.services.scout-baseline = {
+    enable = false;
     description = "Scout baseline — 7-day rolling stats per signal";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -354,6 +361,7 @@
     };
   };
   systemd.timers.scout-baseline = {
+    enable = false;
     description = "Run scout-baseline nightly at 22:30";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -367,6 +375,7 @@
   # Reads daily_ledgers + signal_baselines, writes signal_trajectories.
   # Scout reads these to decide which deviations to surface in summaries.
   systemd.services.scout-trajectories = {
+    enable = false;
     description = "Scout trajectories — 4-way per-signal comparisons";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -385,6 +394,7 @@
     };
   };
   systemd.timers.scout-trajectories = {
+    enable = false;
     description = "Run scout-trajectories nightly at 22:45";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -399,6 +409,7 @@
   # (claude-haiku-4-5), writes scout_compositions row. Falls back to a
   # template-only render if ANTHROPIC_API_KEY is unset.
   systemd.services.scout-summarize = {
+    enable = false;
     description = "Scout summarize — write yesterday's prose to scout_compositions";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -417,6 +428,7 @@
     };
   };
   systemd.timers.scout-summarize = {
+    enable = false;
     description = "Run scout-summarize nightly at 23:05 (after baseline + trajectories)";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -431,6 +443,7 @@
   # Fires every 5 min so the dashboard's "Dad, right now" block stays fresh.
   # Uses Haiku, ~$0.001/render, ~$8/mo at the 5-min cadence.
   systemd.services.scout-dad-status = {
+    enable = false;
     description = "Scout dad-status — 'how is Dad right now' composer";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -449,6 +462,7 @@
     };
   };
   systemd.timers.scout-dad-status = {
+    enable = false;
     description = "Render dad-status every 5 minutes";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -463,6 +477,7 @@
   # for every pending decision. Fires every 5 min so newly-flagged decisions
   # get composed quickly and priority scores stay fresh.
   systemd.services.scout-decisions = {
+    enable = false;
     description = "Scout decisions — narrative + button generation per pending decision";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -481,6 +496,7 @@
     };
   };
   systemd.timers.scout-decisions = {
+    enable = false;
     description = "Recompose decision queue every 5 minutes";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -494,6 +510,7 @@
   # Scout picks ONE item to surface as Top from Scout. Refreshes every 15
   # min so it doesn't bounce around constantly mid-thought.
   systemd.services.scout-top-pick = {
+    enable = false;
     description = "Scout top-pick — editorial 'top from Scout today'";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -512,6 +529,7 @@
     };
   };
   systemd.timers.scout-top-pick = {
+    enable = false;
     description = "Refresh Scout's top pick every 15 minutes";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -526,6 +544,7 @@
   # at day 25, urgent at day 30, daily reminder once overdue. Idempotent
   # per-day per-reminder-type so we don't spam.
   systemd.services.scout-reminders = {
+    enable = false;
     description = "Scout reminders — pharmacy refill + future time-anchored nudges";
     unitConfig = {
       ConditionPathExists = "/home/nate/Manor/Scout/projects/scout-pipeline/.venv/bin/python3";
@@ -544,6 +563,7 @@
     };
   };
   systemd.timers.scout-reminders = {
+    enable = false;
     description = "Run scout-reminders daily at 12:00 EDT";
     wantedBy = [ "timers.target" ];
     timerConfig = {
@@ -589,6 +609,7 @@
   # Deletes raw_session_pulse rows older than 14 days. Patterns extracted from
   # the data live forever in `patterns` table; raw pulse data shreds.
   systemd.services.scout-pulse-shred = {
+    enable = false;
     description = "Shred raw_session_pulse rows older than 14 days";
     unitConfig = {
       ConditionPathExists = "/etc/scout-pulse.env";
@@ -610,6 +631,7 @@
     };
   };
   systemd.timers.scout-pulse-shred = {
+    enable = false;
     description = "Run scout-pulse-shred nightly at 03:00";
     wantedBy = [ "timers.target" ];
     timerConfig = {

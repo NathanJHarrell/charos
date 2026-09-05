@@ -71,6 +71,9 @@ the Nest. This table is retained as migration history.
 
 Historical launch aliases and `family-agent` integration remain in Git for
 provenance. Current family launches route through the Cove body infrastructure.
+The legacy Scout pipeline service and timer definitions are likewise retained
+for history but disabled on TC-Nest; family-state collection no longer belongs
+on the learning workstation.
 
 ### Codex on the learning machine
 

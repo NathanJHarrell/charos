@@ -20,3 +20,5 @@
 - Create and recovery-test that encrypted preservation vault; copy the selected
   filesystem state, export live service data consistently, preserve the stopped
   Wolfden container layer, and record checksums plus reconstruction metadata.
+- Remove the verified rebuildable cleanup set and retire the legacy Scout
+  pipeline services and timers from the active TC-Nest system role.

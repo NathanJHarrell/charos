@@ -46,3 +46,18 @@
   differences, and all 15 dirty repositories retained matching HEADs and dirty
   entry counts. Four explicitly recorded live-churn files changed after the
   snapshot; none is in the intended cleanup set. No source cleanup has occurred.
+- With explicit approval, removed only the preserved rebuildable caches and
+  build outputs, vacuumed the journal to about 1 GiB, removed the archived
+  stopped Wolfden container/image and dangling Docker images, and cleared
+  unused build cache. Available root space rose from 9,180,418,048 to
+  24,586,104,832 bytes; all six retained containers recovered healthy.
+- Built NixOS `26.05.8954.a5cc6f2c37bf` successfully. A guarded test activation
+  exposed two migration issues: obsolete Scout timers made activation return
+  failure, and hot-switching the cross-release Wayland/DRM stack caused the
+  internal display and network session to wedge. The timed recovery was
+  followed by a normal reboot into the unchanged 25.11 boot generation; the
+  preservation SSD remained locked throughout.
+- Disabled the nine legacy Scout pipeline services and their timers on TC-Nest.
+  Their definitions remain as migration provenance, while family runtime work
+  belongs on Cove. The corrected generation will be boot-tested rather than
+  hot-switched across graphics stacks.
