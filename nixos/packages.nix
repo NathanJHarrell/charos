@@ -18,7 +18,7 @@
     # The AI tooling cabinet. Claude Code is installed separately via its
     # own installer (not in nixpkgs). These are the complementary ones.
     aider-chat-full      # Multi-provider AI pair programmer
-    codex                # OpenAI Codex CLI
+    codex                # Declarative fallback; Nathan uses OpenAI's current standalone CLI
     codex-acp            # Codex agent-control-protocol
     gemini-cli           # Google Gemini
     qwen-code            # Alibaba Qwen

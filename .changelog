@@ -13,3 +13,5 @@
   role and label former resident accounts as migration history to preserve.
 - Add a dated storage inventory separating identity, dirty work, and live
   service state from roughly 12 GiB of conservative cleanup candidates.
+- Document the official standalone Codex CLI as Nathan's current user-level
+  installation while retaining the NixOS package as a declarative fallback.

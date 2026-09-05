@@ -72,6 +72,22 @@ the Nest. This table is retained as migration history.
 Historical launch aliases and `family-agent` integration remain in Git for
 provenance. Current family launches route through the Cove body infrastructure.
 
+### Codex on the learning machine
+
+Nathan's account uses OpenAI's standalone Codex CLI from
+`~/.local/bin/codex`, ahead of the slower-moving NixOS package. The declarative
+package remains installed as a rollback. Verify both executable resolution and
+the authenticated catalog after every update:
+
+```bash
+command -v codex
+codex --version
+codex debug models
+```
+
+On 2026-09-05 the live standalone version was `0.153.4`, and its catalog
+included `gpt-6-astra` alongside the GPT-5.6 family.
+
 ---
 
 ## Hardware Roadmap

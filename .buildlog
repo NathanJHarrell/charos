@@ -23,3 +23,7 @@
   machine's current role is Nathan's isolated learning workstation.
 - Completed a read-only storage inventory and recorded the preservation and
   cleanup boundary in `docs/tc-nest-storage-inventory-2026-09-05.md`.
+- Installed OpenAI's digest-verified standalone Codex CLI `0.153.4` for
+  Nathan's account. A fresh interactive shell resolves
+  `/home/nate/.local/bin/codex`; authenticated `codex debug models` lists
+  `gpt-6-astra`. The system `0.92.0` binary remains underneath as rollback.
