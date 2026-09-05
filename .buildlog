@@ -83,3 +83,15 @@
   through `/etc/nixos/configuration.nix` now produces a 26.05 system derivation,
   closing the downgrade trap between the live generation and the ordinary
   future maintenance path.
+- With Nathan's explicit approval, reopened the preservation vault read-only
+  and revalidated the exact `/home/tc-jarvis/wolfden` and
+  `/home/nate/shophosting-2026-04-07` trees before deletion. Both had matching
+  file/symlink counts and zero content differences after excluding only Git's
+  regenerated `.git/index` cache and directory timestamps; their repository
+  HEADs, staged-file maps, and complete dirty-state fingerprints also matched.
+  Removed only those two internal-disk trees, reclaiming 20,113,276,928
+  allocated bytes and raising available root space to 41,357,901,824 bytes.
+  All six retained containers remained up and zero systemd units failed. The
+  preservation mapper and both SSD filesystems were then cleanly unmounted and
+  locked. The separate B2/restic copy is Nathan-confirmed history and was not
+  independently audited in this session.

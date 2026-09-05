@@ -118,5 +118,19 @@ rebuildable-file cleanup, journal vacuum, stopped Wolfden container/image
 removal, dangling-image and build-cache cleanup, and removal of NixOS
 generations 1 through 61. Generation 62 remains the 25.11 rollback and
 generation 63 is the verified live 26.05 system. The boot menu contains only
-those two generations. No preserved historical source tree has been deleted;
-any later archive offload remains a separate destructive boundary.
+those two generations.
+
+Nathan then explicitly authorized deletion of the internal-disk Wolfden and
+ShopHosting trees if their encrypted SSD copies were confirmed. The vault was
+reopened read-only and both exact source/destination pairs were checked again.
+Wolfden matched at 606,077 regular files and 48,920 symlinks; ShopHosting
+matched at 4,633 regular files and 2 symlinks. Checksum-mode rsync reported no
+content differences after excluding only regenerated `.git/index` caches and
+directory timestamps. Both repositories separately matched on HEAD, staged
+file map, and complete dirty-state fingerprint. TC then removed only
+`/home/tc-jarvis/wolfden` and `/home/nate/shophosting-2026-04-07`, reclaiming
+20,113,276,928 allocated bytes. Root availability rose to 41,357,901,824 bytes
+(39% free); all six retained containers remained up and zero systemd units
+failed. The SSD was cleanly unmounted and its LUKS mapper closed. Nathan states
+these Jarvis-originated trees also exist in B2/restic; that remote backup was
+not independently audited during this refresh.

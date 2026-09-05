@@ -31,3 +31,6 @@
 - Fast-forward canonical `main` without disturbing its pre-existing dirty
   paths, and advance the root NixOS channel to 26.05 so `/etc/nixos` reproduces
   the live system through the normal rebuild workflow.
+- Revalidate the encrypted SSD copies of historical Wolfden and ShopHosting
+  against their live trees, then remove only those two internal-disk archives
+  and leave TC-Nest with about 41.4 GB available.
