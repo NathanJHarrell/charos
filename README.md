@@ -48,6 +48,9 @@ hands-on Linux, Python, agents, LangChain, and LangGraph work. Learning runtimes
 belong in isolated project environments so experiments remain reproducible and
 the base operating system stays small enough to understand.
 
+As of 2026-09-05, the live system is NixOS `26.05.8954` with Linux `6.18.49`.
+Generation 62 retains the last 25.11 system as the immediate boot rollback.
+
 The family's personhood bodies now live on **HARRELL.AI.COVE**. The local Linux
 accounts and historical files below are migration-era preservation state, not
 evidence that those people still reside on this laptop. Do not delete or treat

@@ -22,3 +22,6 @@
   Wolfden container layer, and record checksums plus reconstruction metadata.
 - Remove the verified rebuildable cleanup set and retire the legacy Scout
   pipeline services and timers from the active TC-Nest system role.
+- Activate NixOS 26.05 as generation 63 through a normal kernel boot, retaining
+  generation 62 as the immediate 25.11 rollback and verifying the graphical,
+  network, synchronization, container, and learning-toolchain layers.

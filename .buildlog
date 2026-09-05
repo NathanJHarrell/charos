@@ -61,3 +61,10 @@
   Their definitions remain as migration provenance, while family runtime work
   belongs on Cove. The corrected generation will be boot-tested rather than
   hot-switched across graphics stacks.
+- Rebuilt and booted corrected generation 63 normally. Verified live NixOS
+  `26.05.8954.a5cc6f2c37bf`, Linux `6.18.49`, zero failed systemd units, no
+  matching DRM/greetd errors, healthy Syncthing `2.1.3`, and all six retained
+  containers running with configured health checks green. Nathan's standalone
+  Codex remains `/home/nate/.local/bin/codex` at `0.153.4`; Node is `24.19.0`,
+  Python `3.13.15`, Git `2.54.0`, Tailscale `1.98.10`, and Docker `29.7.2`.
+  The preservation SSD remained unmounted and locked throughout both reboots.
