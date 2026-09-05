@@ -15,3 +15,5 @@
   service state from roughly 12 GiB of conservative cleanup candidates.
 - Document the official standalone Codex CLI as Nathan's current user-level
   installation while retaining the NixOS package as a declarative fallback.
+- Add `cryptsetup` and specify a 128 GiB LUKS2/ext4 preservation container that
+  leaves the Portable SSD's existing exFAT data intact.

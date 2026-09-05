@@ -101,6 +101,7 @@
     # publication). VPN clients deferred pending Dad's Mullvad+ProtonVPN
     # account setup; see council doc.
     age                  # File encryption — .private/ staging + vault snapshots
+    cryptsetup           # LUKS2 preservation containers on removable storage
     gnupg                # PGP — for Identiv FIDO2 integration when the key arrives
     rclone               # Cloud sync — for age-then-rclone double-wrapped backups
 

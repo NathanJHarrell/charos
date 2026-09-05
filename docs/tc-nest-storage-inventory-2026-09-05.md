@@ -59,9 +59,17 @@ results.
 ## Portable SSD contract
 
 The 2 TB SanDisk Portable SSD uses exFAT. Plain directory copies would lose
-Unix ownership, modes, symlinks, and extended attributes. Preserve each payload
-as an encrypted archive with numeric ownership, ACLs, and xattrs, then generate
-and independently verify a checksum manifest before deleting any source.
+Unix ownership, modes, symlinks, and extended attributes. Preserve the selected
+payloads inside a LUKS2 container file with an ext4 filesystem, leaving the
+existing exFAT partition and its 487 GB of data unchanged. The recommended
+initial container size is 128 GiB for roughly 25 GiB of current preservation
+material plus future verified snapshots.
+
+Store a newly generated LUKS passphrase in Vaultwarden before formatting the
+container. Back up the LUKS header separately, checksum both the container and
+header, close and reopen the mapping, run an ext4 check, and restore a canary
+before any source cleanup. Never place the passphrase, Vaultwarden session, or
+decrypted secret content in logs or transcripts.
 
 At inventory time the SSD was visible on LucariOS but unmounted, so free space
 and filesystem consistency had not yet been established. LucariOS internal
@@ -69,6 +77,5 @@ storage is critically full and must not be used as a staging area.
 
 ## Release boundary
 
-This document authorizes no copy, mount, service stop, export, deletion,
+This document authorizes no preservation write, service stop, export, deletion,
 garbage collection, container prune, or Nix-generation removal.
-

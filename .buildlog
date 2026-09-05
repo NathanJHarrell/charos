@@ -27,3 +27,6 @@
   Nathan's account. A fresh interactive shell resolves
   `/home/nate/.local/bin/codex`; authenticated `codex debug models` lists
   `gpt-6-astra`. The system `0.92.0` binary remains underneath as rollback.
+- Selected a non-destructive LUKS2-in-file preservation design for the existing
+  exFAT Portable SSD and added `cryptsetup` to the declarative tool cabinet.
+  Creation remains gated on a newly generated Vaultwarden-held passphrase.
