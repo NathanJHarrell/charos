@@ -9,4 +9,12 @@
   branch. Live activation remains pending a clean 26.05 evaluation and build.
 - Preserved the dirty live checkout; this work is isolated from its modified
   `vibedeck` submodule and two untracked backup scripts.
-
+- Slimmed the base Python environment to the libraries used by lightweight
+  host services. Large vision, speech, and model dependencies now belong in
+  project-local labs, avoiding a projected 25.2 GiB 26.05 system closure.
+- Moved the declared Node.js runtime from 22 to current LTS 24 for the learning
+  role.
+- The revised configuration evaluates cleanly on NixOS 26.05. The dry build
+  fell from 8,007.05 MiB download / 25,182.34 MiB unpacked to 5,262.49 MiB /
+  14,547.77 MiB. No system build or activation has occurred; storage
+  preservation and safe reclaim remain prerequisites.

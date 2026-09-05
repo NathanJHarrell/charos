@@ -12,7 +12,7 @@
     # npm install is deprecated and insecure. Native installer auto-updates.
     git
     gh                   # GitHub CLI
-    nodejs_22            # Forge + Next.js
+    nodejs_24            # Current LTS for learning labs and web tooling
 
     # ── Agent CLIs ──────────────────────────────────────────────────────
     # The AI tooling cabinet. Claude Code is installed separately via its
@@ -23,22 +23,12 @@
     gemini-cli           # Google Gemini
     qwen-code            # Alibaba Qwen
     ollama               # Local LLM runner (CPU variant — alias for ollama-cpu)
-    # Python bundled with every library CHAROS scripts need, reachable by
-    # plain `python3` or `#!/usr/bin/env python3`. Adding a python312Packages.*
-    # line to systemPackages alone does NOT add to sys.path — it has to be
-    # a withPackages wrap for the modules to import from the shebang.
-    (python312.withPackages (ps: with ps; [
+    # Keep the base OS focused on lightweight host services and learning.
+    # Heavy vision, speech, and model stacks belong in per-project virtual
+    # environments or containers so every system rebuild does not carry them.
+    (python313.withPackages (ps: with ps; [
       pip
-      numpy
-      pillow
-      pyserial          # Serial comms (rover, WLED)
-      opencv4           # Vision primitives
-      dlib              # HOG/CNN face detectors + 128-d embeddings
-      face-recognition  # High-level wrapper on dlib
-      face-recognition-models
       sounddevice       # Mic capture for tc-listen / tc-phone
-      faster-whisper    # High-accuracy offline STT
-      speechbrain       # ECAPA-TDNN speaker embeddings — voice-print ID
       soundfile         # Read/write WAVs for the voice-enroll pipeline
       fastapi           # HAROS-FOV + jukebox web backend
       uvicorn           # ASGI server for FastAPI
@@ -83,10 +73,8 @@
     v4l-utils            # v4l2-ctl — camera debugging
 
     # ── Vision & AI ──────────────────────────────────────────────────────
-    # opencv4, dlib, face-recognition are bundled into the python3
-    # above via withPackages. Keeping this section header for future
-    # non-Python tools (models, datasets, etc.).
-    # python312Packages.mediapipe — NOT in nixpkgs, needs custom overlay
+    # Project-specific model stacks are intentionally not system packages.
+    # Add them to an isolated lab only when a current lesson requires them.
 
     # ── Hardware & Sensors ───────────────────────────────────────────────
     i2c-tools                    # I2C sensor debugging

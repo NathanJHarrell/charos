@@ -5,4 +5,7 @@
 - Prepare TC-Nest for NixOS 26.05 by replacing removed `neofetch` with the
   maintained `fastfetch` system-information tool.
 - Begin the required durable build and change records for future maintenance.
-
+- Move Node.js from 22 to 24 and remove system-wide heavyweight ML libraries;
+  keep lightweight audio and web-service Python dependencies in the base OS.
+- Keep project code and history while moving heavyweight model dependencies
+  out of the host system closure and into isolated, lesson-specific runtimes.
