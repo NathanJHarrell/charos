@@ -113,6 +113,10 @@ comparison log; none is part of the proposed cleanup set.
 ## Release boundary
 
 Preservation writes and bounded export pauses were explicitly authorized and
-are complete. Deletion, garbage collection, Docker pruning, Nix-generation
-removal, and NixOS activation remain gated on completed comparison evidence and
-Nathan's explicit cleanup approval.
+are complete. Nathan subsequently authorized and completed the named
+rebuildable-file cleanup, journal vacuum, stopped Wolfden container/image
+removal, dangling-image and build-cache cleanup, and removal of NixOS
+generations 1 through 61. Generation 62 remains the 25.11 rollback and
+generation 63 is the verified live 26.05 system. The boot menu contains only
+those two generations. No preserved historical source tree has been deleted;
+any later archive offload remains a separate destructive boundary.

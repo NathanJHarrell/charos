@@ -25,3 +25,6 @@
 - Activate NixOS 26.05 as generation 63 through a normal kernel boot, retaining
   generation 62 as the immediate 25.11 rollback and verifying the graphical,
   network, synchronization, container, and learning-toolchain layers.
+- Remove NixOS generations 1 through 61 and garbage-collect their unreachable
+  store paths, reducing the boot menu to the current and immediate rollback
+  generations.

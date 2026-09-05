@@ -68,3 +68,10 @@
   Codex remains `/home/nate/.local/bin/codex` at `0.153.4`; Node is `24.19.0`,
   Python `3.13.15`, Git `2.54.0`, Tailscale `1.98.10`, and Docker `29.7.2`.
   The preservation SSD remained unmounted and locked throughout both reboots.
+- With explicit approval, deleted NixOS generations 1 through 61 while
+  retaining generation 62 as the 25.11 rollback and generation 63 as current.
+  Garbage collection removed 6,769 unreachable store paths and reported
+  8.0 GiB freed. Available root space rose from 8,585,211,904 to
+  21,806,080,000 bytes, `/nix/store` fell to 40 GiB, and the regenerated boot
+  menu now contains exactly generations 62 and 63. Post-cleanup system and
+  container health remained green.
