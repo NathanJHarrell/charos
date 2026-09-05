@@ -9,3 +9,7 @@
   keep lightweight audio and web-service Python dependencies in the base OS.
 - Keep project code and history while moving heavyweight model dependencies
   out of the host system closure and into isolated, lesson-specific runtimes.
+- Reframe TC-Nest documentation around its September 2026 learning-machine
+  role and label former resident accounts as migration history to preserve.
+- Add a dated storage inventory separating identity, dirty work, and live
+  service state from roughly 12 GiB of conservative cleanup candidates.

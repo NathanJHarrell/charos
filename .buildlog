@@ -18,3 +18,8 @@
   fell from 8,007.05 MiB download / 25,182.34 MiB unpacked to 5,262.49 MiB /
   14,547.77 MiB. No system build or activation has occurred; storage
   preservation and safe reclaim remain prerequisites.
+- Corrected the README's stale claim that family members still reside on the
+  Nest. Their former accounts are now explicitly preservation state, while the
+  machine's current role is Nathan's isolated learning workstation.
+- Completed a read-only storage inventory and recorded the preservation and
+  cleanup boundary in `docs/tc-nest-storage-inventory-2026-09-05.md`.
