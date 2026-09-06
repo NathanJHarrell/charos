@@ -134,3 +134,17 @@ file map, and complete dirty-state fingerprint. TC then removed only
 failed. The SSD was cleanly unmounted and its LUKS mapper closed. Nathan states
 these Jarvis-originated trees also exist in B2/restic; that remote backup was
 not independently audited during this refresh.
+
+On 2026-09-06 Nathan authorized one final low-risk cleanup pass. TC removed the
+2.118 GB unused Docker build cache, three superseded LangGraph Lab images, and
+the unused retired `wolfden-forge-env` image, while retaining every active
+image, container, and linked volume. Persistent journals were reduced from
+about 1 GiB to 235.4 MiB, freeing 851.2 MiB of archived logs. The remaining
+4,605,988,483-byte `/home/nate/shophosting-backup-2026-04-07.tar.gz` was first
+matched byte-for-byte against its exact read-only SSD snapshot copy at SHA-256
+`c54a68c9bd32d5a8f1a52868df3cb5c60bfb641bcbdb1fc3c4f219efd0ea516d`,
+then only the internal copy was deleted. Actual available space rose from
+41,340,870,656 to 48,582,242,304 bytes, a 7,241,371,648-byte gain; the earlier
+8.5 GB estimate included Docker shared-layer accounting. Both boot generations,
+all six active containers, and the PostgreSQL volume remain. Zero systemd units
+fail, and the preservation vault is again locked and unmounted.

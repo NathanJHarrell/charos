@@ -34,3 +34,7 @@
 - Revalidate the encrypted SSD copies of historical Wolfden and ShopHosting
   against their live trees, then remove only those two internal-disk archives
   and leave TC-Nest with about 41.4 GB available.
+- Complete the final approved low-risk pass by removing unused Docker build
+  cache/images, trimming journals to 235 MiB, and deleting the byte-identical
+  internal ShopHosting tarball only after a fresh read-only SSD hash match;
+  leave 48.58 GB available without removing the rollback generation.

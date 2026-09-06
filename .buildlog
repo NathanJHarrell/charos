@@ -95,3 +95,23 @@
   preservation mapper and both SSD filesystems were then cleanly unmounted and
   locked. The separate B2/restic copy is Nathan-confirmed history and was not
   independently audited in this session.
+
+## 2026-09-06 — TC-Nest final low-risk storage pass
+
+- With Nathan's explicit approval, removed all 2.118 GB of unused Docker build
+  cache, three superseded LangGraph Lab images, and the unused retired
+  `wolfden-forge-env` image. All six active images and containers plus the
+  linked PostgreSQL volume remained intact.
+- Reduced persistent journals from about 1 GiB to 235.4 MiB, freeing 851.2 MiB
+  of archived logs.
+- Reopened the preservation vault read-only and compared the exact 4,605,988,483
+  byte `/home/nate/shophosting-backup-2026-04-07.tar.gz` source and SSD snapshot
+  copy. Size, mtime, and SHA-256 matched byte-for-byte at
+  `c54a68c9bd32d5a8f1a52868df3cb5c60bfb641bcbdb1fc3c4f219efd0ea516d`
+  before deleting only the internal-disk copy.
+- Actual root availability rose from 41,340,870,656 to 48,582,242,304 bytes, a
+  7,241,371,648-byte gain; Docker's earlier logical estimate was higher because
+  it included shared-layer accounting. Generation 62 remains the rollback,
+  generation 63 remains current, all six containers are up and healthy where
+  configured, and zero systemd units fail. The SSD was cleanly unmounted and
+  locked afterward.
